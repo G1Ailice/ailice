@@ -73,15 +73,21 @@ export default function Layout1({
               height: '100vh',
               backgroundColor: 'rgba(0, 0, 0, 0.8)',
               display: 'flex',
+              flexDirection: 'column',
               justifyContent: 'center',
               alignItems: 'center',
               color: 'white',
               zIndex: 3000,
             }}
           >
-            <Typography variant="h3" component="div">
+            <Typography variant="h3" component="div" sx={{ marginBottom: 2 }}>
               Website on Maintenance
             </Typography>
+            <img 
+              src="/gif/coding-scaler.gif" 
+              alt="Coding Scaler Animation" 
+              style={{ maxWidth: '80%', height: '40%' }} 
+            />
           </Box>
         ) : (
           <Suspense fallback={<LoadingFallback />}>
