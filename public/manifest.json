@@ -1,0 +1,22 @@
+{
+    "name": "AIlice",
+    "short_name": "AIlice",
+    "description": "Your app description",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#424242",
+    "theme_color": "#424242",
+    "icons": [
+      {
+        "src": "/icons/ailice_192x192.png",
+        "sizes": "192x192",
+        "type": "image/png"
+      },
+      {
+        "src": "/icons/ailice_512x512.png",
+        "sizes": "512x512",
+        "type": "image/png"
+      }
+    ]
+  }
+  
