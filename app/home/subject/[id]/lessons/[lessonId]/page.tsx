@@ -1,9 +1,9 @@
-"use client";
+'use client'
 
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
-import { Typography, Container, Box, Paper, Tabs, Tab, CircularProgress, useTheme } from '@mui/material';
+import { Typography, Container, Box, Paper, Tabs, Tab, CircularProgress, useTheme, Skeleton } from '@mui/material';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
@@ -23,6 +23,7 @@ export default function LessonDetailsTabs() {
   const theme = useTheme();
   const [gameContent, setGameContent] = useState('');
   const [gameScript, setGameScript] = useState('');
+  const [gameLoaded, setGameLoaded] = useState(false); // New state to track if game is loaded
 
   useEffect(() => {
     const fetchLessonContent = async () => {
@@ -53,76 +54,90 @@ export default function LessonDetailsTabs() {
     }
   }, [lessonId]);
 
-const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
-  setCurrentTab(newValue);
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setCurrentTab(newValue);
 
-  if (newValue === 1) {
-    const fetchGameContent = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('lesson_content')
-          .select('content, script')
-          .eq('lessons_id', lessonId)
-          .eq('content_type', 'Game')
-          .single();
+    if (newValue === 1) {
+      const fetchGameContent = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('lesson_content')
+            .select('content, script')
+            .eq('lessons_id', lessonId)
+            .eq('content_type', 'Game')
+            .single();
 
-        if (error) {
-          console.error('Error fetching game content:', error);
+          if (error) {
+            console.error('Error fetching game content:', error);
+            setGameContent('<p>Game content not available.</p>');
+            setGameScript('');
+            return;
+          }
+
+          // Set content first, then script
+          setGameContent(data?.content || '<p>Game content not available.</p>');
+          setGameScript(data?.script || '');
+        } catch (error) {
+          console.error('Unexpected error fetching game content:', error);
           setGameContent('<p>Game content not available.</p>');
           setGameScript('');
-          return;
         }
+      };
 
-        // Set content first, then script
-        setGameContent(data?.content || '<p>Game content not available.</p>');
-        setGameScript(data?.script || '');
-      } catch (error) {
-        console.error('Unexpected error fetching game content:', error);
-        setGameContent('<p>Game content not available.</p>');
-        setGameScript('');
-      }
-    };
-
-    fetchGameContent();
-  } else {
-    setGameContent('');
-    setGameScript('');
-  }
-};
-
-useEffect(() => {
-  if (currentTab === 1 && gameContent) {
-    const runGameScript = () => {
-      try {
-        const scriptContentMatch = gameScript.match(/<script[^>]*>([\s\S]*?)<\/script>/);
-        const scriptContent = scriptContentMatch ? scriptContentMatch[1] : '';
-
-        if (scriptContent) {
-          const script = document.createElement('script');
-          script.type = 'text/javascript';
-          script.textContent = scriptContent;
-          document.body.appendChild(script);
-
-          return () => {
-            document.body.removeChild(script);
-          };
-        }
-      } catch (error) {
-        console.error('Error appending script:', error);
-      }
-    };
-
-    const gameContainer = document.getElementById('game-container');
-    if (gameContainer) {
-      // Render the content first
-      gameContainer.innerHTML = gameContent;
-
-      // Then run the script
-      runGameScript();
+      fetchGameContent();
+    } else {
+      setGameContent('');
+      setGameScript('');
     }
-  }
-}, [currentTab, gameContent, gameScript]);
+  };
 
+  useEffect(() => {
+    if (currentTab === 1 && gameContent && !gameLoaded) {
+      const runGameScript = () => {
+        try {
+          // Check if the script already exists to avoid redeclaration
+          let existingScript = document.getElementById('game-script');
+          if (!existingScript) {
+            const scriptContentMatch = gameScript.match(/<script[^>]*>([\s\S]*?)<\/script>/);
+            const scriptContent = scriptContentMatch ? scriptContentMatch[1] : '';
+
+            if (scriptContent) {
+              const script = document.createElement('script');
+              script.id = 'game-script'; // Add an ID to uniquely identify this script tag
+              script.type = 'text/javascript';
+              script.textContent = scriptContent;
+              document.body.appendChild(script);
+            }
+          }
+        } catch (error) {
+          console.error('Error appending script:', error);
+        }
+      };
+
+      const gameContainer = document.getElementById('game-container');
+      if (gameContainer) {
+        // Clear previous game content to avoid duplicates
+        gameContainer.innerHTML = ''; // Clear old content
+
+        // Render the content
+        gameContainer.innerHTML = gameContent;
+
+        // Then run the script
+        runGameScript();
+
+        // Set gameLoaded to true after content and script have been appended
+        setGameLoaded(true);
+      }
+
+      // Cleanup the script when leaving the game tab
+      return () => {
+        let existingScript = document.getElementById('game-script');
+        if (existingScript) {
+          document.body.removeChild(existingScript);
+        }
+      };
+    }
+  }, [currentTab, gameContent, gameScript, gameLoaded]);
 
   if (isLoading) {
     return (
@@ -195,13 +210,20 @@ useEffect(() => {
           )}
           {currentTab === 1 && (
             <Box mt={2}>
-              <Box
-                mt={2}
-                id="game-container"
-                dangerouslySetInnerHTML={{
-                  __html: gameContent || '<p>Game content not available.</p>',
-                }}
-              />
+              <Typography variant="body2" color="error" mb={2}>
+                Switching to other tabs will reset your progression.
+              </Typography>
+              {gameContent ? (
+                <Box
+                  mt={2}
+                  id="game-container"
+                  dangerouslySetInnerHTML={{
+                    __html: gameContent,
+                  }}
+                />
+              ) : (
+                <Skeleton animation="wave" variant="rectangular" width="100%" height={100} />
+              )}
             </Box>
           )}
         </Paper>
