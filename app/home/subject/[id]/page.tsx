@@ -8,7 +8,7 @@ import { Typography, Container, Box, Paper, Button, Grid, TextField, IconButton,
 import { Chat as ChatIcon, Close as CloseIcon, Lock, LockOpen } from '@mui/icons-material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import Loading from '../../loading';
-import { v4 as uuidv4 } from 'uuid';
+import { customAlphabet } from 'nanoid';
 import { blue, grey, yellow, red} from '@mui/material/colors';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 
@@ -47,12 +47,6 @@ interface Assessment {
   allscore: number; 
 }
 
-interface Message {
-  text: string;
-  sender: 'user' | 'bot';
-}
-
-
 export default function SubjectPage() {
   const [openDialog, setOpenDialog] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState<{ title: string; time_limit: number; id: string; allscore: number; } | null>(null);
@@ -61,7 +55,7 @@ export default function SubjectPage() {
   const [lessons, setLessons] = useState<Lesson[]>([]);
   const [assessments, setAssessments] = useState<Assessment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [userProgress, setUserProgress] = useState<string[]>([]); // Track completed lessons by lesson ID
+  const [userProgress, setUserProgress] = useState<string[]>([]); 
   const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
   const theme = useTheme();
@@ -214,9 +208,7 @@ export default function SubjectPage() {
     if (id) {
       fetchData();
     }
-  }, [id, userId]);
-  
-  
+  }, [id, userId]);  
   
   // Group lessons by lesson_no
   const groupedLessons = lessons.reduce(
@@ -371,8 +363,10 @@ export default function SubjectPage() {
     let isUniqueId = false;
   
     try {
+      const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', 5); 
+      
       while (!isUniqueId) {
-        progressAssessmentId = uuidv4();
+        progressAssessmentId = nanoid();
   
         // Check if the generated ID already exists in the `progress_assessment` table
         const { data: existingId, error: checkError } = await supabase
@@ -387,7 +381,7 @@ export default function SubjectPage() {
         }
   
         if (!existingId) {
-          isUniqueId = true;
+          isUniqueId = true; // Exit the loop if the ID is unique
         }
       }
   
@@ -422,7 +416,7 @@ export default function SubjectPage() {
       setIsProceeding(false);
     }
   };
-  
+
   const handleBack = () => {
     router.back();
   };
