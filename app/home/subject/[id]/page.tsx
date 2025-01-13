@@ -438,20 +438,7 @@ export default function SubjectPage() {
               position: 'relative',
             }}
           >
-            <Button
-                variant="contained"
-                color="primary"
-                sx={{
-                  position: 'absolute',
-                  top: '10px',
-                  left: '10px',
-                  display: { xs: 'none', sm: 'block' }, // Hide on mobile (xs), show on larger screens (sm+)
-                }}
-                onClick={() => window.history.back()}
-              >
-                Back
-              </Button>
-  
+            
             <Typography variant="h5" style={{ fontSize: isMobile ? '1.25rem' : '1.5rem' }}>
               {subject.sub}
             </Typography>

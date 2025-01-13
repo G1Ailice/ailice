@@ -13,6 +13,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next"
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import Tooltip from '@mui/material/Tooltip';
 
 const theme = createTheme({
   palette: {
@@ -350,49 +351,70 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
             <Box display="flex" alignItems="center">
               {username && (
                 <>
-                  <IconButton
-                    onClick={() => router.push('/home')}
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      cursor: 'pointer',
-                      marginRight: '10px',
-                    }}
-                  >
-                    <HomeIcon sx={{ fontSize: 30, color: blue[500] }} />
-                  </IconButton>
+                  <Tooltip title="Back">
+                    <IconButton
+                      onClick={() => router.back()} // Navigate to the previous page
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        cursor: 'pointer',
+                        marginRight: '10px',
+                      }}
+                    >
+                      <ArrowBackIcon sx={{ fontSize: 30, color: blue[500] }} />
+                    </IconButton>
+                  </Tooltip>
 
-                  <IconButton
-                    onClick={handleRefresh}
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      cursor: 'pointer',
-                      marginRight: '10px',
-                    }}
-                  >
-                    <RefreshIcon sx={{ fontSize: 30, color: blue[500] }} />
-                  </IconButton>
-                  <Avatar
-                    onClick={handleClick}
-                    src={
-                      userData?.profile_pic
-                        ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${userData.profile_pic}`
-                        : undefined
-                    }
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      cursor: 'pointer',
-                      backgroundColor: blue[200],
-                      border: '2px solid',
-                      borderColor: blue[500],
-                      borderRadius: '50%',
-                    }}
-                  >
-                    {!userData?.profile_pic && userData?.username?.[0]?.toUpperCase()}
-                  </Avatar>
-  
+                  <Tooltip title="Home">
+                    <IconButton
+                      onClick={() => router.push('/home')}
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        cursor: 'pointer',
+                        marginRight: '10px',
+                      }}
+                    >
+                      <HomeIcon sx={{ fontSize: 30, color: blue[500] }} />
+                    </IconButton>
+                  </Tooltip>
+
+                  <Tooltip title="Refresh">
+                    <IconButton
+                      onClick={handleRefresh}
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        cursor: 'pointer',
+                        marginRight: '10px',
+                      }}
+                    >
+                      <RefreshIcon sx={{ fontSize: 30, color: blue[500] }} />
+                    </IconButton>
+                  </Tooltip>
+
+                  <Tooltip title="Profile">
+                    <Avatar
+                      onClick={handleClick}
+                      src={
+                        userData?.profile_pic
+                          ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${userData.profile_pic}`
+                          : undefined
+                      }
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        cursor: 'pointer',
+                        backgroundColor: blue[200],
+                        border: '2px solid',
+                        borderColor: blue[500],
+                        borderRadius: '50%',
+                      }}
+                    >
+                      {!userData?.profile_pic && userData?.username?.[0]?.toUpperCase()}
+                    </Avatar>
+                  </Tooltip>
+
                   <Popover
                     open={open}
                     anchorEl={anchorEl}
