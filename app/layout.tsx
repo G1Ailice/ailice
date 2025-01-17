@@ -18,7 +18,7 @@ export default function Layout1({
 }) {
   const [deferredPrompt, setDeferredPrompt] = useState<Event | null>(null);
   const [showInstallButton, setShowInstallButton] = useState(false);
-  const [isMaintenance, setIsMaintenance] = useState(false); 
+  const [isMaintenance, setIsMaintenance] = useState(true); 
   
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
