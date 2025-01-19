@@ -16,10 +16,10 @@ export async function GET(req: NextRequest) {
 
   const userId = session.replace('session-token-', '');
 
-  // Fetch user data including profile_pic, username, and email from the database
+  // Fetch user data including profile_pic, username, email, and exp
   const { data, error } = await supabase
     .from('users')
-    .select('id, username, email, profile_pic')
+    .select('id, username, email, profile_pic, exp')
     .eq('id', userId)
     .single();
 
@@ -31,6 +31,7 @@ export async function GET(req: NextRequest) {
     id: data.id,
     username: data.username,
     email: data.email,
-    profile_pic: data.profile_pic || null, // Return null if no profile_pic is set
+    profile_pic: data.profile_pic || null,
+    exp: data.exp || 0, // Default exp to 0 if it's null or undefined
   });
 }

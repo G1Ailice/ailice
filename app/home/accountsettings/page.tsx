@@ -35,8 +35,9 @@ export default function AccountSettings() {
     };
     fetchUserData();
   }, [router]);
-
+  
   const handleAvatarClick = () => setOpenDialog(true);
+  
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && file.size <= 3 * 1024 * 1024) { // 3MB limit
@@ -46,11 +47,16 @@ export default function AccountSettings() {
       setSnackbar({ open: true, message: 'File size exceeds 3MB', severity: 'error' });
     }
   };
-
+  
+  const triggerAction = () => {
+    const event = new Event('childAction');
+    document.dispatchEvent(event);
+  };
+  
   const uploadImage = async () => {
     if (!selectedImage || !userData) return;
     const filePath = `${userData.id}/${selectedImage.name}`;
-
+  
     try {
       if (userData.profile_pic) { // Delete old image
         await supabase.storage.from('profiles').remove([userData.profile_pic]);
@@ -58,23 +64,26 @@ export default function AccountSettings() {
       // Upload new image
       const { error: uploadError } = await supabase.storage.from('profiles').upload(filePath, selectedImage, { upsert: true });
       if (uploadError) throw uploadError;
-
+  
       // Update database link
       const { error: dbError } = await supabase.from('users').update({ profile_pic: filePath }).eq('id', userData.id);
       if (dbError) throw dbError;
-
+  
       const newProfilePicUrl = `${process.env.NEXT_PUBLIC_SUPABASE_STORAGE_URL}/${filePath}`;
       setUserData((prev: any) => ({ ...prev, profile_pic: filePath, profile_pic_url: newProfilePicUrl }));
       setSnackbar({ open: true, message: 'Profile picture updated successfully!', severity: 'success' });
       setOpenDialog(false);
+  
+      // Trigger the custom action event
+      triggerAction();
     } catch (error) {
       setSnackbar({ open: true, message: 'Error updating profile picture', severity: 'error' });
     }
   };
-
+  
   return (
     <Container
-        maxWidth="sm"
+     maxWidth="sm"
         sx={{
             minHeight: 'calc(100vh - 64px)', // Account for AppBar height
             display: 'flex',

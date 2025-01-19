@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { TextField, Drawer, AppBar, Toolbar, Typography, Box, Button, CssBaseline, ThemeProvider, createTheme, Popover, useMediaQuery, Avatar,
- BottomNavigation, BottomNavigationAction} from '@mui/material';
+import { Drawer, AppBar, Toolbar, Typography, Box, Button, CssBaseline, ThemeProvider, createTheme, Popover, useMediaQuery, Avatar,
+ BottomNavigation, BottomNavigationAction, LinearProgress} from '@mui/material';
 import { grey, blue } from '@mui/material/colors';
 import { createClient } from '@supabase/supabase-js';
 import 'typeface-varela-round';
@@ -47,113 +47,83 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
   const router = useRouter();
   const isMobile = useMediaQuery('(max-width:600px)');
   const [userData, setUserData] = useState<any>(null);
+  const [userLevel, setUserLevel] = useState({ level: 1, currentExp: 0, nextExp: 100 });
 
+  const calculateLevel = (exp: number | null) => {
+    if (!exp || exp <= 0) return { level: 1, currentExp: 0, nextExp: 100 };
+    let level = 1;
+    let expNeeded = 100;
+    while (exp >= expNeeded && level < 100) {
+      exp -= expNeeded;
+      level++;
+      expNeeded += 50;
+    }
+    return { level, currentExp: exp, nextExp: expNeeded };
+  };
+  
   useEffect(() => {
-    // Function to check the user's session
+    let isCooldown = false; // Cooldown flag
+  
     const checkSession = async () => {
       try {
-        // Api request
         const res = await fetch('/api/check-auth');
-        
         if (res.ok) {
-          // If the response is successful, extract the user data
           const data = await res.json();
-          setUsername(data.username); 
-          setUserId(data.id);         
+          setUsername(data.username);
+          setUserId(data.id);
         } else {
-          // If the response indicates an error, redirect the user to the home page
           router.push('/');
         }
       } catch (error) {
-        // Log any errors during the session check and redirect the user to the home page
         console.error('Session check failed:', error);
         router.push('/');
       }
     };
   
-    checkSession();
-  }, [router]); // Effect re-runs only when the router changes
-  
-
-  useEffect(() => {
     const fetchUserData = async () => {
       const response = await fetch('/api/check-auth');
       if (response.ok) {
         const data = await response.json();
+    
         if (data.profile_pic) {
           data.profile_pic_url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${data.profile_pic}`;
         }
+    
+        if (data.exp === null) data.exp = 0; // Default to 0 if exp is null
+    
+        const levelData = calculateLevel(data.exp);
+        setUserLevel(levelData);
         setUserData(data);
       } else {
         router.push('/');
       }
     };
-    fetchUserData();
-  }, [router]);  
-
-  useEffect(() => {
-    // Periodically check for any assessments that have reached their time limit and finalize them
-    const interval = setInterval(async () => {
-      try {
-        const { data, error } = await supabase
-          .from('progress_assessment')
-          .select('id, end_time, overallscore')
-          .is('overallscore', null);  // Only fetch assessments that are not finished
-
-        if (error) {
-          console.error('Error fetching progress assessments:', error);
-          return;
-        }
-
-        if (data) {
-          const now = new Date();
-          for (const assessment of data) {
-            const endTime = new Date(assessment.end_time);
-            if (now >= endTime) {
-              // Calculate score and finalize this assessment
-              await finalizeAssessment(assessment.id);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error during assessment finalization check:', error);
-      }
-    }, 60000); // Check every 60 seconds
-
-    return () => clearInterval(interval);
+ 
+    const handleAction = () => {
+      if (isCooldown) return; // Prevent new launches during cooldown
+      isCooldown = true;
+      checkSession();
+      fetchUserData();
+      setTimeout(() => {
+        isCooldown = false;
+      }, 5000); // Cooldown period
+    };
+  
+    // Listen for custom "childAction" events
+    const handleCustomEvent = () => {
+      handleAction();
+    };
+  
+    document.addEventListener('childAction', handleCustomEvent);
+  
+    // Run automatically once on mount
+    handleAction();
+  
+    return () => {
+      document.removeEventListener('childAction', handleCustomEvent);
+    };
   }, []);
-
-  const finalizeAssessment = async (progressAssessmentId: string) => {
-    try {
-      // Fetch related questions and calculate the score
-      const { data: questions, error } = await supabase
-        .from('progress_questions')
-        .select('questions_id, inputted_answer, qpoints')
-        .eq('progress_assessmentid', progressAssessmentId);
-
-      if (error) {
-        console.error('Error fetching questions for assessment finalization:', error);
-        return;
-      }
-
-      let totalScore = 0;
-      if (questions) {
-        for (const question of questions) {
-          totalScore += question.qpoints;
-        }
-      }
-
-      // Update overall score and mark assessment as finished
-      await supabase
-        .from('progress_assessment')
-        .update({ overallscore: totalScore, status: 'finished' })
-        .eq('id', progressAssessmentId);
-      
-      console.log(`Assessment ${progressAssessmentId} finalized with score: ${totalScore}`);
-    } catch (error) {
-      console.error('Error finalizing assessment:', error);
-    }
-  }; 
+  
 
   const handleLogout = async () => {
     try {
@@ -162,10 +132,6 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
     } catch (error) {
       console.error('Logout failed:', error);
     }
-  };
-
-  const handleRefresh = () => {
-    window.location.reload(); // Refreshes the page
   };
 
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
@@ -187,15 +153,72 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
       <CssBaseline />
       {isMobile ? (
         <>
-          <Typography
-            variant="h4"
-            component="div"
-            color="primary"
-            sx={{ fontSize: isMobile ? '1.5rem' : '2rem', marginLeft: "1rem", marginTop: "1rem" }}
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap', // Ensures wrapping on smaller screens
+              margin: '1rem',
+            }}
           >
-            <img src="/icons/ailicemascot.png" alt="AILICEMASCOT" style={{ maxHeight: '30px' }} />
-            <img src="/icons/ailiceword.png" alt="AILICE" style={{ maxHeight: '30px' }} />
-          </Typography>      
+            {/* AILICE Branding */}
+            <Typography
+              variant="h4"
+              component="div"
+              color="primary"
+              sx={{
+                fontSize: isMobile ? '1.5rem' : '2rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
+              <img src="/icons/ailicemascot.png" alt="AILICEMASCOT" style={{ maxHeight: '30px' }} />
+              <img src="/icons/ailiceword.png" alt="AILICE" style={{ maxHeight: '30px' }} />
+            </Typography>
+
+            {/* Level Box */}
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center', 
+                gap: 1,
+                flexShrink: 0, // Prevent shrinking of the level box
+              }}
+            >
+              <Typography variant="body2" color="primary" sx={{ fontWeight: 'bold' }}>
+                Level {userLevel.level}
+              </Typography>
+              <Box sx={{ position: 'relative', width: isMobile ? 80 : 100 }}>
+                <LinearProgress
+                  variant="determinate"
+                  value={(userLevel.currentExp / userLevel.nextExp) * 100}
+                  sx={{ height: 15, borderRadius: 3 }}
+                />
+                <Typography
+                  variant="body2"
+                  color="textSecondary"
+                  sx={{
+                    position: 'absolute',
+                    top: 0,
+                    left: '50%',
+                    transform: 'translate(-50%, 0)',
+                    lineHeight: '15px',
+                    fontSize: '0.75rem',
+                    fontWeight: 'bold',
+                    width: '100%',
+                    textAlign: 'center',
+                  }}
+                >
+                  {userLevel.currentExp}/{userLevel.nextExp}
+                </Typography>
+              </Box>
+            </Box>
+          </Box>
+
+
+                
           <BottomNavigation
             sx={{
               position: 'fixed',
@@ -212,6 +235,15 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
               padding: '8px 16px',
             }}
           >
+            {/* Home Button */}
+            <BottomNavigationAction
+              icon={<HomeIcon sx={{ fontSize: 30, color: blue[500] }} />}
+              onClick={() => router.push('/home')}
+              sx={{
+                minWidth: 'auto',
+              }}
+            />
+
             {/* Avatar Button */}
             <BottomNavigationAction
               icon={
@@ -237,24 +269,6 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
               sx={{
                 minWidth: 'auto',
                 padding: '0',
-              }}
-            />
-
-            {/* Home Button */}
-            <BottomNavigationAction
-              icon={<HomeIcon sx={{ fontSize: 30, color: blue[500] }} />}
-              onClick={() => router.push('/home')}
-              sx={{
-                minWidth: 'auto',
-              }}
-            />
-            
-            {/* Refresh Button */}
-            <BottomNavigationAction
-              icon={<RefreshIcon sx={{ fontSize: 30, color: blue[500] }} />}
-              onClick={handleRefresh}
-              sx={{
-                minWidth: 'auto',
               }}
             />
 
@@ -287,7 +301,7 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
               }}
             >
               <IconButton
-                sx={{ alignSelf: 'flex-end', mb: 1 }}
+                sx={{ alignSelf: 'flex-end', mb: "1px" }}
                 onClick={handleClose}
               >
                 <CloseIcon />
@@ -301,7 +315,7 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
                 sx={{
                   width: 80,
                   height: 80,
-                  mb: 2,
+                  mb: 1,
                   backgroundColor: blue[300],
                 }}
               >
@@ -316,6 +330,7 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
               >
                 {userData?.email || 'user@example.com'}
               </Typography>
+              
               <Button
                 variant="contained"
                 color="secondary"
@@ -379,19 +394,36 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
                     </IconButton>
                   </Tooltip>
 
-                  <Tooltip title="Refresh">
-                    <IconButton
-                      onClick={handleRefresh}
-                      sx={{
-                        width: 40,
-                        height: 40,
-                        cursor: 'pointer',
-                        marginRight: '10px',
-                      }}
-                    >
-                      <RefreshIcon sx={{ fontSize: 30, color: blue[500] }} />
-                    </IconButton>
-                  </Tooltip>
+                  <Box sx={{ display: 'flex', alignItems: 'center', marginRight: '10px', gap: 1 }}>
+                    <Typography variant="body2" color="primary" sx={{ fontWeight: 'bold' }}>
+                      Level {userLevel.level}
+                    </Typography>
+                    <Box sx={{ position: 'relative', width: 100 }}>
+                      <LinearProgress
+                        variant="determinate"
+                        value={(userLevel.currentExp / userLevel.nextExp) * 100}
+                        sx={{ height: 15, borderRadius: 3 }}
+                      />
+                      <Typography
+                        variant="body2"
+                        color="textSecondary"
+                        sx={{
+                          position: 'absolute',
+                          top: 0,
+                          left: '50%',
+                          transform: 'translate(-50%, 0)',
+                          lineHeight: '15px', // Align text vertically with the progress bar height
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          width: '100%',
+                          textAlign: 'center',
+                        }}
+                      >
+                        {userLevel.currentExp}/{userLevel.nextExp}
+                      </Typography>
+                    </Box>
+                  </Box>
+
 
                   <Tooltip title="Profile">
                     <Avatar
@@ -508,12 +540,10 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
           </Toolbar>
         </AppBar>
       )}
-  
       <main>
         {userId && <input type="hidden" value={userId} />}
         {children}
       </main>
     </ThemeProvider>
   );
-  
 }
