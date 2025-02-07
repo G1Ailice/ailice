@@ -7,6 +7,7 @@ import { Container, Box, Paper, Typography, useMediaQuery } from '@mui/material'
 import { keyframes } from '@emotion/react';
 import Loading from './loading';
 import {grey, blue } from '@mui/material/colors';
+import CircularProgress from '@mui/material/CircularProgress';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
@@ -28,10 +29,31 @@ const clickAnimation = keyframes`
 
 export default function HomePage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false); // New state for disabling
   const router = useRouter();
   const isMobile = useMediaQuery('(max-width:600px)');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/check-auth', {
+          method: 'GET',
+          credentials: 'include',
+        });
+
+        if (!response.ok) {
+          router.push('/');
+        }
+      } catch (error) {
+        router.push('/');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkAuth();
+  }, [router]);
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -61,7 +83,6 @@ export default function HomePage() {
       } catch (error) {
         console.error('Failed to fetch subjects:', error);
       } finally {
-        setIsLoading(false);
       }
     };
     fetchSubjects();
@@ -75,8 +96,18 @@ export default function HomePage() {
     setIsProcessing(false);
   };
 
-  if (isLoading) {
-    return <Loading />;
+
+  if (loading) {
+    return (
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        height="80vh"
+      >
+        <CircularProgress />
+      </Box>
+    );
   }
 
   return (

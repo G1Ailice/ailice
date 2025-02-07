@@ -23,36 +23,52 @@ export default function LessonDetailsTabs() {
   const theme = useTheme();
   const [gameContent, setGameContent] = useState('');
   const [gameScript, setGameScript] = useState('');
-  const [gameLoaded, setGameLoaded] = useState(false); // New state to track if game is loaded
+  const [gameLoaded, setGameLoaded] = useState(false); 
+  const router = useRouter();
 
   useEffect(() => {
     const fetchLessonContent = async () => {
+      setIsLoading(true); // Start the loading state
+  
       try {
+        // Check authentication first
+        const authResponse = await fetch('/api/check-auth', {
+          method: 'GET',
+          credentials: 'include',
+        });
+  
+        if (!authResponse.ok) {
+          router.push('/');
+          return; // Exit early if not authenticated
+        }
+  
+        // Fetch lesson content after authentication
         const { data, error } = await supabase
           .from('lesson_content')
           .select('content, content_type')
           .eq('lessons_id', lessonId)
           .eq('content_type', 'Lesson')
           .single();
-
+  
         if (error) {
           console.error('Supabase error:', error);
           setLessonContent(null);
           return;
         }
-
+  
         setLessonContent(data?.content || null);
       } catch (error) {
         console.error('Failed to fetch lesson content:', error);
       } finally {
-        setIsLoading(false);
+        setIsLoading(false); // End the loading state
       }
     };
-
+  
     if (lessonId) {
       fetchLessonContent();
     }
-  }, [lessonId]);
+  }, [lessonId, router]);
+  
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);

@@ -1,78 +1,151 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { createClient } from '@supabase/supabase-js';
 import { stripHtml } from 'string-strip-html';
-import stringSimilarity from 'string-similarity';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY ?? '';
-const supabase = createClient(supabaseUrl, supabaseKey);
+import { promises as fs } from 'fs';
+import path from 'path';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-export async function POST(req: Request) {
-  const { messages, newMessage, restrictedQuestions } = await req.json();
+// Module-level cache for the reference document and its embedding.
+let cachedVectorContent: string | null = null;
+let cachedFileEmbedding: number[] | null = null;
 
-  // Trim, normalize, and strip HTML from the incoming message
+// Helper function to compute cosine similarity between two numeric vectors.
+function cosineSimilarity(a: number[], b: number[]): number {
+  const dot = a.reduce((sum, ai, i) => sum + ai * b[i], 0);
+  const normA = Math.sqrt(a.reduce((sum, ai) => sum + ai * ai, 0));
+  const normB = Math.sqrt(b.reduce((sum, bi) => sum + bi * bi, 0));
+  return dot / (normA * normB);
+}
+
+// Uses the AI assistant to determine if the message is a general interaction.
+// Returns true if the message is general (e.g. greetings, small talk),
+// or false if it is a specialized inquiry about English school lessons.
+async function checkIfGeneral(message: string): Promise<boolean> {
+  const prompt = `Please determine whether the following message is a general, casual interaction (for example, greetings, small talk, or non-specific conversation) or a specialized inquiry about English school lessons that requires detailed information. Respond only with "true" if it is a general interaction, and "false" if it is a specialized inquiry.
+
+Message: "${message}"`;
+
+  try {
+    const res = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [{ role: "system", content: prompt }],
+      max_tokens: 10,
+      temperature: 0,
+    });
+    const answer = res.choices[0]?.message.content?.trim().toLowerCase();
+    return answer === "true";
+  } catch (error) {
+    console.error("Error checking if message is general:", error);
+    // Default to false on error.
+    return false;
+  }
+}
+
+export async function POST(req: Request) {
+  // Destructure messages and newMessage from the request body.
+  const { messages, newMessage } = await req.json();
+
+  // Trim, normalize, and strip HTML from the incoming message.
   const normalizedMessage = stripHtml(newMessage.trim().toLowerCase()).result;
 
-  // Query Supabase to fetch all assessment questions (qcontent)
-  const { data: assessmentQuestions, error } = await supabase
-    .from('questions')
-    .select('qcontent');
+  // Determine if the incoming question is a general interaction.
+  const isGeneral = await checkIfGeneral(normalizedMessage);
 
-  if (error) {
-    console.error('Error fetching assessment questions from Supabase:', error);
-    return NextResponse.json({ response: 'An error occurred while processing your request.' });
-  }
+  // Variables to decide whether to use the reference vector content.
+  let useVector = false;
+  let vectorContent = "";
 
-  // Check if the question is restricted
-  if (assessmentQuestions && assessmentQuestions.length > 0) {
-    const threshold = 0.8; // Threshold for relaxed matching
+  // For specialized inquiries only, check for a matching reference.
+  if (!isGeneral) {
+    try {
+      // Use the cached reference content and embedding if available.
+      if (!cachedVectorContent || !cachedFileEmbedding) {
+        const vectorFilePath = path.join(
+          process.cwd(),
+          'public',
+          'vector',
+          'content.txt'
+        );
+        cachedVectorContent = await fs.readFile(vectorFilePath, 'utf8');
 
-    for (const question of assessmentQuestions) {
-      // Normalize qcontent (question text)
-      const normalizedQcontent = stripHtml(question.qcontent?.trim().toLowerCase() ?? '').result;
-
-      // If it's a restricted question, add it to the list of restricted questions
-      if (normalizedMessage.includes(normalizedQcontent) || stringSimilarity.compareTwoStrings(normalizedMessage, normalizedQcontent) >= threshold) {
-        // Store the restricted question on the client-side (in localStorage)
-        if (!restrictedQuestions.includes(normalizedQcontent)) {
-          restrictedQuestions.push(normalizedQcontent);
-        }
-        return NextResponse.json({ response: `This question is restricted. Please try asking something else!` });
+        const fileEmbeddingResponse = await openai.embeddings.create({
+          model: "text-embedding-ada-002",
+          input: cachedVectorContent,
+        });
+        cachedFileEmbedding = fileEmbeddingResponse.data[0].embedding;
       }
+      vectorContent = cachedVectorContent as string;
+
+      // Compute the embedding for the user’s (normalized) question.
+      const userEmbeddingResponse = await openai.embeddings.create({
+        model: "text-embedding-ada-002",
+        input: normalizedMessage,
+      });
+      const userEmbedding = userEmbeddingResponse.data[0].embedding;
+
+      // Compute cosine similarity between the file and user embeddings.
+      const similarity = cosineSimilarity(cachedFileEmbedding, userEmbedding);
+      const threshold = 0.75; // Adjust this threshold as needed.
+
+      if (similarity >= threshold) {
+        // If a matching reference is found, we instantly go to the vector branch.
+        useVector = true;
+      }
+    } catch (err) {
+      console.error("Error computing embeddings:", err);
+      // Optionally, you can decide to default to one branch if an error occurs.
     }
   }
 
-  // Add all restricted questions to the system prompt, including previous ones
-  const systemPrompt = `
-    You are a teacher-like assistant named AIlice. Provide helpful, friendly, and detailed responses but is strict when it comes to restricted questions.
-    The following questions are restricted and should never be answered and just only say "This is restricted dont try to cheat.":
-    - ${restrictedQuestions.join('\n- ')}`;
+  // Prepare the system prompt and conversation.
+  let systemPrompt: string;
+  let conversation = [];
 
-  // If no restrictions, proceed to OpenAI
-  const conversation = [
-    { role: "system", content: systemPrompt },
-    ...messages,
-    { role: "user", content: newMessage },
-  ];
+  if (!isGeneral && useVector) {
+    // For a specialized inquiry that matches the reference,
+    // include the reference document (unchanged) in the system prompt.
+    systemPrompt = `You are a teacher-like assistant named AIlice.
+Below is a reference document:
 
+${vectorContent}
+
+When answering the user's question, do not add, modify, paraphrase, or alter the reference text in any way.`;
+    conversation = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: newMessage },
+    ];
+  } else {
+    // For general interactions or specialized inquiries with no matching reference,
+    // use the generic teacher-like system prompt.
+    systemPrompt =
+      "You are a teacher-like assistant named AIlice. Provide helpful, friendly, and detailed responses.";
+    conversation = [
+      { role: "system", content: systemPrompt },
+      ...messages,
+      { role: "user", content: newMessage },
+    ];
+  }
+
+  // Immediately call the AI chat completion API.
   try {
     const openaiResponse = await openai.chat.completions.create({
-      model: "ft:gpt-4o-mini-2024-07-18:g1-ailice:ailicev05:AjUFrFjI",
+      model: "gpt-3.5-turbo",
       messages: conversation,
       max_tokens: 150,
     });
 
-    const responseText = openaiResponse.choices[0]?.message.content?.trim() ?? "Sorry, I could not generate a response.";
+    const responseText =
+      openaiResponse.choices[0]?.message.content?.trim() ||
+      "Sorry, I could not generate a response.";
     return NextResponse.json({ response: responseText });
   } catch (error) {
     console.error("Error with OpenAI API:", error);
-    return NextResponse.json({ response: "An error occurred while generating a response." });
+    return NextResponse.json({
+      response: "An error occurred while generating a response.",
+    });
   }
 }

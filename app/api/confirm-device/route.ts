@@ -7,6 +7,20 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? '';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY ?? '';
 const supabase = createClient(supabaseUrl, supabaseKey);
 
+const redirectScript = `
+  <script>
+    let countdown = 5;
+    const interval = setInterval(() => {
+      document.getElementById('countdown').textContent = countdown;
+      if (countdown <= 0) {
+        clearInterval(interval);
+        window.location.href = "/";
+      }
+      countdown--;
+    }, 1000);
+  </script>
+`;
+
 export async function GET(req: NextRequest) {
   const token = req.nextUrl.searchParams.get('token');
   if (!token) {
@@ -21,13 +35,16 @@ export async function GET(req: NextRequest) {
             body { font-family: 'Varela Round', sans-serif; background-color: #ffffff; color: #333; }
             .message { font-size: 18px; padding: 20px; border-radius: 5px; }
             .error { background-color: #f8d7da; color: #721c24; }
-            .success { background-color: #d4edda; color: #155724; }
             h1 { color: #0066cc; }
+            .link { margin-top: 20px; text-align: center; }
           </style>
         </head>
         <body>
           <h1>Invalid Confirmation Link</h1>
           <div class="message error">The confirmation link is invalid or expired. Please request a new one.</div>
+          <div class="link"><a href="/">Go to Login</a></div>
+          <div class="link">Redirecting in <span id="countdown">5</span> seconds...</div>
+          ${redirectScript}
         </body>
       </html>
     `, { status: 400, headers: { 'Content-Type': 'text/html' } });
@@ -52,16 +69,20 @@ export async function GET(req: NextRequest) {
             .message { font-size: 18px; padding: 20px; border-radius: 5px; }
             .error { background-color: #f8d7da; color: #721c24; }
             h1 { color: #0066cc; }
+            .link { margin-top: 20px; text-align: center; }
           </style>
         </head>
         <body>
           <h1>Confirmation Failed</h1>
           <div class="message error">The confirmation failed or the token has expired. Please try again.</div>
+          <div class="link"><a href="/">Go to Login</a></div>
+          <div class="link">Redirecting in <span id="countdown">5</span> seconds...</div>
+          ${redirectScript}
         </body>
       </html>
     `, { status: 400, headers: { 'Content-Type': 'text/html' } });
   }
-
+  
   const { email, device } = data;
 
   // Fetch current device array
@@ -84,16 +105,20 @@ export async function GET(req: NextRequest) {
             .message { font-size: 18px; padding: 20px; border-radius: 5px; }
             .error { background-color: #f8d7da; color: #721c24; }
             h1 { color: #0066cc; }
+            .link { margin-top: 20px; text-align: center; }
           </style>
         </head>
         <body>
           <h1>User Not Found</h1>
           <div class="message error">We couldn't find the user associated with this token.</div>
+          <div class="link"><a href="/">Go to Login</a></div>
+          <div class="link">Redirecting in <span id="countdown">5</span> seconds...</div>
+          ${redirectScript}
         </body>
       </html>
     `, { status: 404, headers: { 'Content-Type': 'text/html' } });
   }
-
+  
   const updatedDevices = [...(user.device || []), device]; // Append new device
 
   // Update user's device array
@@ -115,40 +140,48 @@ export async function GET(req: NextRequest) {
             .message { font-size: 18px; padding: 20px; border-radius: 5px; }
             .error { background-color: #f8d7da; color: #721c24; }
             h1 { color: #0066cc; }
+            .link { margin-top: 20px; text-align: center; }
           </style>
         </head>
         <body>
           <h1>Failed to Register Device</h1>
           <div class="message error">There was an issue registering the device. Please try again later.</div>
+          <div class="link"><a href="/">Go to Login</a></div>
+          <div class="link">Redirecting in <span id="countdown">5</span> seconds...</div>
+          ${redirectScript}
         </body>
       </html>
     `, { status: 500, headers: { 'Content-Type': 'text/html' } });
   }
-
+  
   // Delete the token from device_confirmations
   await supabase
     .from('device_confirmations')
     .delete()
     .eq('token', token);
 
-  return new NextResponse(`
-    <!DOCTYPE html>
-    <html lang="en">
-      <head>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Device Confirmation</title>
-        <style>
-          body { font-family: 'Varela Round', sans-serif; background-color: #ffffff; color: #333; }
-          .message { font-size: 18px; padding: 20px; border-radius: 5px; }
-          .success { background-color: #d4edda; color: #155724; }
-          h1 { color: #0066cc; }
-        </style>
-      </head>
-      <body>
-        <h1>Device Registered Successfully</h1>
-        <div class="message success">Your device has been successfully registered. You can now log in.</div>
-      </body>
-    </html>
-  `, { headers: { 'Content-Type': 'text/html' } });
-}
+    return new NextResponse(`
+      <!DOCTYPE html>
+      <html lang="en">
+        <head>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Device Confirmation</title>
+          <style>
+            body { font-family: 'Varela Round', sans-serif; background-color: #ffffff; color: #333; }
+            .message { font-size: 18px; padding: 20px; border-radius: 5px; }
+            .success { background-color: #d4edda; color: #155724; }
+            h1 { color: #0066cc; }
+            .link { margin-top: 20px; text-align: center; }
+          </style>
+        </head>
+        <body>
+          <h1>Device Registered Successfully</h1>
+          <div class="message success">Your device has been successfully registered. You can now log in.</div>
+          <div class="link"><a href="/">Go to Login</a></div>
+          <div class="link">Redirecting in <span id="countdown">5</span> seconds...</div>
+          ${redirectScript}
+        </body>
+      </html>
+    `, { headers: { 'Content-Type': 'text/html' } });
+  }
