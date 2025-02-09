@@ -318,6 +318,13 @@ const TrialPage = () => {
     setAttemptMessage(localAttemptMessage);
     setOpenDialog(true);
     setIsSubmitting(false);
+
+    triggerAction();
+  };
+
+  const triggerAction = () => {
+    const event = new Event('childAction');
+    document.dispatchEvent(event);
   };
 
   const handleDialogClose = () => {

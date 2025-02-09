@@ -97,55 +97,81 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
   // Session check and user data fetch (runs on mount and on custom events)
   useEffect(() => {
     let isCooldown = false; // Prevent repeated calls in a short period
-
-    const checkSession = async () => {
+  
+    const handleAction = async () => {
+      if (isCooldown) return;
+      isCooldown = true;
+  
       try {
+        // Check session and get user data
         const res = await fetch('/api/check-auth');
         if (res.ok) {
           const data = await res.json();
           setUsername(data.username);
           setUserId(data.id);
+  
+          // Fetch additional user data details:
+          if (data.profile_pic) {
+            data.profile_pic_url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${data.profile_pic}`;
+          }
+          if (data.exp === null) data.exp = 0;
+          const levelData = calculateLevel(data.exp);
+          setUserLevel(levelData);
+          setUserData(data);
+  
+          // -------------------------------
+          // New: Check if there is an active trial for the user
+          // -------------------------------
+          // Query the "trial_data" table where:
+          // - user_id matches the current user id,
+          // - status is "Ongoing"
+          const { data: trialData, error } = await supabase
+            .from('trial_data')
+            .select('*')
+            .eq('user_id', data.id)
+            .eq('status', 'Ongoing');
+  
+          if (error) {
+            console.error('Error fetching trial data:', error);
+          }
+  
+          if (trialData && trialData.length > 0) {
+            // Get the current time based on Asia/Manila timezone.
+            const nowManila = new Date(
+              new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" })
+            ).getTime();
+  
+            // Check if any trial's end_time is later than the current time.
+            const activeTrialExists = trialData.some(trial => {
+              const trialEndTime = new Date(trial.end_time).getTime();
+              return nowManila < trialEndTime;
+            });
+  
+            setIsButtonDisabled(activeTrialExists);
+          } else {
+            setIsButtonDisabled(false);
+          }
+          // -------------------------------
         } else {
           router.push('/');
         }
       } catch (error) {
-        console.error('Session check failed:', error);
+        console.error('Error during session check:', error);
         router.push('/');
       }
-    };
-
-    const fetchUserData = async () => {
-      const response = await fetch('/api/check-auth');
-      if (response.ok) {
-        const data = await response.json();
-        if (data.profile_pic) {
-          data.profile_pic_url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${data.profile_pic}`;
-        }
-        if (data.exp === null) data.exp = 0;
-        const levelData = calculateLevel(data.exp);
-        setUserLevel(levelData);
-        setUserData(data);
-      } else {
-        router.push('/');
-      }
-    };
-
-    const handleAction = () => {
-      if (isCooldown) return;
-      isCooldown = true;
-      checkSession();
-      fetchUserData();
+  
       setTimeout(() => {
         isCooldown = false;
       }, 5000);
     };
-
+  
     document.addEventListener('childAction', handleAction);
     handleAction();
     return () => {
       document.removeEventListener('childAction', handleAction);
     };
   }, [router]);
+  
 
   // Restore saved chat messages and restricted questions from localStorage
   useEffect(() => {
@@ -166,6 +192,12 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     localStorage.setItem('restricted_questions', JSON.stringify(restrictedQuestions));
   }, [restrictedQuestions]);
+
+  useEffect(() => {
+    if (isButtonDisabled) {
+      setIsChatOpen(false);
+    }
+  }, [isButtonDisabled]);
 
   // Scroll chat to the bottom when new messages are added
   useEffect(() => {
@@ -329,7 +361,7 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
               display: 'flex',
               justifyContent: 'center',
               alignItems: 'center',
-              padding: '8px 16px',
+          
             }}
           >
             <BottomNavigationAction
@@ -588,7 +620,12 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
 
       {/* Chat Icon Button */}
       <IconButton
-        onClick={() => setIsChatOpen(!isChatOpen)}
+        onClick={() => {
+          if (!isButtonDisabled) {
+            setIsChatOpen(!isChatOpen);
+          }
+        }}
+        disabled={isButtonDisabled}
         sx={{
           width: 60,
           height: 60,
@@ -598,22 +635,31 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
           right: 20,
           zIndex: theme.zIndex.drawer - 1,
         }}
-        disabled={isButtonDisabled}
       >
         <ChatIcon sx={{ fontSize: 35, color: isButtonDisabled ? 'grey' : blue[500] }} />
       </IconButton>
 
-      {/* Chat Window */}
       {isChatOpen && (
         <Box
           sx={{
             position: 'fixed',
-            bottom: isMobile ? 140 : 20,
-            right: 20,
-            width: 350,
-            height: 600,
+            ...(isMobile
+              ? {
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  width: '100%',
+                  height: 'calc(100vh - 80px)',
+                  borderRadius: 0,
+                }
+              : {
+                  bottom: 20,
+                  right: 20,
+                  width: 350,
+                  height: 600,
+                  borderRadius: '8px',
+                }),
             border: '1px solid #ccc',
-            borderRadius: '8px',
             padding: '16px',
             backgroundColor: 'white',
             display: 'flex',

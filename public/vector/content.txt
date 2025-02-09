@@ -1,3 +1,14 @@
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Developers of Ailice:
+
+I was created by Jade C. Estremera
+
+Who is Jade C. Estremera
+Jade C. Estremera is the programmer of Group 1 and leader.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
 Analogy is a pair of terms that has a common relationship. Usually, you will not
 only determine the common relationship between each pair but you will also identify
 which term makes up each pair. In other words, analogy is word relationships.
@@ -139,5 +150,116 @@ In analyzing a documentary, it is helpful to look for its general elements. Amon
 1. Subject. The subject is what the documentary is about. A documentary presents the general human condition which covers issues like social issues, politics, crime, etc. In addition, documentaries include people, places, and events that are actual and usually contemporary.
 2. Purpose. The purpose of the documentary is to present the topics that inform the audience about the people, places, events, institutions, and problems. It also aims to record and interpret the actual problems in front of the camera. It also informs and convinces the viewers to get a clearer view or take action about their subjects.
 3. Audience. The audience is another important element in a documentary. The content must be relevant to the audience. The documentary must be created in such a way that it affects the viewers and leads them to action.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+The Basic Sentence Patterns
+
+In English, sentences follow different patterns. Patterns refer to the arrangement of elements in a sentence. They range from the most basic to the most complex. There are five common basic sentence patterns in English, but in this module, we will only discuss two: S-IV and S-TV-DO.
+
+Example:
+The boys kicked the ball.
+
+(S) Subject - The boys
+(V) Verb - kicked
+(DO) Direct Object - the ball.
+
+S-IV
+The S-IV pattern is the simplest type of sentence pattern. S stands for the subject, and IV stands for intransitive verb. A sentence with an S-IV pattern expresses a complete thought with just the verb and does not require an object. The verb in this pattern is called an intransitive verb.
+
+Examples:
+
+Mother bakes. "S - Mother, IV - bakes." 
+Carlo paints. "S - Carlo, IV - paints." 
+The children read. "S - The children, IV - read" 
+
+S-TV-DO
+The S-TV-DO pattern is another common basic sentence structure. S stands for the subject, TV stands for transitive verb, and DO stands for direct object. A sentence in the S-TV-DO pattern includes a transitive verb that requires a direct object to complete its thought. The action expressed by a transitive verb transfers to a receiver, which is called the direct object.
+
+Examples:
+
+Mother bakes a cake. "S - Mother, TV - bakes, DO - a cake." 
+Carlo paints a portrait. "S - Carlo, TV - paints, DO - a portrait."
+The children read comics. "S - The children, TV - read, DO - comics."
+
+The sentence pattern serves as a guide in forming the parts of a sentence correctly. Just like a tailor uses a pattern to cut and sew fabric into a complete piece of clothing, each word in a sentence plays an important role in expressing a complete thought. Understanding sentence patterns improves your ability to write clear and grammatically correct sentences, enhancing effective communication.
+
+The Voices of the Verb
+
+The lion ate the mouse.
+The mouse was eaten by the lion.
+The sentences above show the voices of the verb. The voices of the verb indicate whether the subject is the doer or the receiver of the action.
+
+Example:
+The lion ate the mouse. (Did the subject do the action?)
+The mouse was eaten by the lion. (Did the subject do the action?)
+In the first sentence, the subject performs the action, while in the second sentence, the subject receives the action.
+
+There are two voices of the verb: active voice and passive voice.
+
+Active Voice
+When the subject performs the action, the verb is in the active voice. Active voice is used when a straightforward relationship and clarity between the subject and the verb are required.
+
+Examples:
+
+The father gives the money to the boy. "S - father, TV - gives, DO - money"
+The author revealed a controversial issue. "S - author, TV - revealed, DO - controversial issue"
+The rich man accused the poor family. "S - rich man, TV - accused, DO - poor family."
+
+Passive Voice
+When the subject receives the action of the verb, the verb is in the passive voice. Passive voice is used when the doer of the action is unknown or when the focus of the sentence is on the action rather than the subject.
+
+Examples:
+
+The `money` `is given` by the father to the boy. 
+A `controversial issue` `was revealed` by the author.
+The `poor family` `was accused` by the rich man.
+The subjects of the sentences in the active voice perform the action, while the subjects in the passive voice receive the action.
+
+The voices of the verb show the relationship between the verb, the subject, and the object. Writers need to be intentional about voice to ensure clarity. Using active voice often improves clarity, while passive voice can help avoid unnecessary repetition. Additionally, active voice emphasizes that the subject precedes the verb, placing focus on the subject. In contrast, passive voice construction leaves out the subject and focuses on the relationship between the verb and the object.
+
+Steps in Transforming Active Voice to Passive Voice
+
+Recognize the active structure and identify the direct object.
+Example:
+The government buys more vaccines. "S -government, TV - buys, DO - vaccines."
+
+Remember that only sentences in the S-TV-DO pattern or verbs with a direct object can be changed to the passive voice. If the verb is intransitive, you cannot change it into the passive voice.
+
+Take the direct object of the active sentence and make it the subject of the passive sentence. If you want to retain the subject in the original sentence, a by-phrase is used. However, it can also be omitted.
+Example:
+The government buys more vaccines. → More vaccines are bought by the government.
+
+Determine the number (singular or plural) of the subject in the transformed sentence and use the format: Subject + helping verb + past participle. If the direct object is singular, then your helping verb must be singular. If the direct object is plural, then your helping verb must be plural.
+Example:
+More vaccines are bought by the government.
+(plural subject + helping verb + main verb in past participle + by-phrase)
+
+The tense of the verb in the passive voice will be based on the tense of the active sentence.
+Examples:
+
+Present Tense:
+Active: COVID-19 affects a person differently.
+Passive: A person is affected by COVID-19 differently.
+
+Past Tense:
+Active: The government administered 20 million doses of vaccines.
+Passive: Twenty million doses of vaccines were administered by the government.
+
+Future Tense:
+Active: Roberto will open a meat shop.
+Passive: A meat shop will be opened by Roberto.
+
+Present Perfect Tense:
+Active: Marita has taken my book.
+Passive: My book has been taken by Marita.
+
+Past Perfect Tense:
+Active: The mayor had received a special award.
+Passive: A special award had been received by the mayor.
+
+Future Perfect Tense:
+Active: Felipe will have written a novel.
+Passive: A novel will have been written by Felipe.
 
 -------------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -21,17 +21,14 @@ function cosineSimilarity(a: number[], b: number[]): number {
   return dot / (normA * normB);
 }
 
-// Uses the AI assistant to determine if the message is a general interaction.
-// Returns true if the message is general (e.g. greetings, small talk),
-// or false if it is a specialized inquiry about English school lessons.
 async function checkIfGeneral(message: string): Promise<boolean> {
-  const prompt = `Please determine whether the following message is a general, casual interaction (for example, greetings, small talk, or non-specific conversation) or a specialized inquiry about English school lessons that requires detailed information. Respond only with "true" if it is a general interaction, and "false" if it is a specialized inquiry.
+  const prompt = `Please analyze the following message and determine if it is a general, casual interaction (such as greetings, small talk, or non-specific conversation) or a specific inquiry that requires detailed information. Respond with "True" if the message is general and casual, and "False" if it is specific and requires detailed information. Only output "True" or "False" with no additional text.
 
 Message: "${message}"`;
 
   try {
     const res = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o-mini",
       messages: [{ role: "system", content: prompt }],
       max_tokens: 10,
       temperature: 0,
@@ -49,20 +46,22 @@ export async function POST(req: Request) {
   // Destructure messages and newMessage from the request body.
   const { messages, newMessage } = await req.json();
 
-  // Trim, normalize, and strip HTML from the incoming message.
   const normalizedMessage = stripHtml(newMessage.trim().toLowerCase()).result;
 
-  // Determine if the incoming question is a general interaction.
+  // Determine if the incoming message is general.
   const isGeneral = await checkIfGeneral(normalizedMessage);
 
-  // Variables to decide whether to use the reference vector content.
-  let useVector = false;
-  let vectorContent = "";
+  // Prepare variables for system prompt and conversation.
+  let systemPrompt: string;
+  let conversation = [];
 
-  // For specialized inquiries only, check for a matching reference.
   if (!isGeneral) {
+    // Specialized inquiry branch.
+    let useVector = false;
+    let vectorContent = "";
+
     try {
-      // Use the cached reference content and embedding if available.
+      // Load and cache the reference content and its embedding if not already cached.
       if (!cachedVectorContent || !cachedFileEmbedding) {
         const vectorFilePath = path.join(
           process.cwd(),
@@ -80,47 +79,41 @@ export async function POST(req: Request) {
       }
       vectorContent = cachedVectorContent as string;
 
-      // Compute the embedding for the user’s (normalized) question.
+      // Compute the embedding for the user's (normalized) question.
       const userEmbeddingResponse = await openai.embeddings.create({
         model: "text-embedding-ada-002",
         input: normalizedMessage,
       });
       const userEmbedding = userEmbeddingResponse.data[0].embedding;
 
-      // Compute cosine similarity between the file and user embeddings.
+      // Compute cosine similarity between the reference and user embeddings.
       const similarity = cosineSimilarity(cachedFileEmbedding, userEmbedding);
-      const threshold = 0.75; // Adjust this threshold as needed.
+      const threshold = 0.60; // Adjust this threshold as needed.
 
       if (similarity >= threshold) {
-        // If a matching reference is found, we instantly go to the vector branch.
+        // A matching reference is found.
         useVector = true;
       }
     } catch (err) {
       console.error("Error computing embeddings:", err);
-      // Optionally, you can decide to default to one branch if an error occurs.
+      // Optionally, you might want to return an error here.
     }
-  }
 
-  // Prepare the system prompt and conversation.
-  let systemPrompt: string;
-  let conversation = [];
+    // If no matching reference is found, return early.
+    if (!useVector) {
+      return NextResponse.json({ response: "This request does not exist" });
+    }
 
-  if (!isGeneral && useVector) {
-    // For a specialized inquiry that matches the reference,
-    // include the reference document (unchanged) in the system prompt.
-    systemPrompt = `You are a teacher-like assistant named AIlice.
-Below is a reference document:
-
-${vectorContent}
-
-When answering the user's question, do not add, modify, paraphrase, or alter the reference text in any way.`;
+    // Use the specialized branch with the reference text.
+    systemPrompt = `You are a teacher-like assistant named AIlice. Below is the reference text: 
+    Reference: ${vectorContent} 
+    When answering the user's question, do not add, modify, paraphrase, or alter the reference text in any way.`;
     conversation = [
       { role: "system", content: systemPrompt },
       { role: "user", content: newMessage },
     ];
   } else {
-    // For general interactions or specialized inquiries with no matching reference,
-    // use the generic teacher-like system prompt.
+    // General inquiry branch.
     systemPrompt =
       "You are a teacher-like assistant named AIlice. Provide helpful, friendly, and detailed responses.";
     conversation = [
@@ -130,10 +123,10 @@ When answering the user's question, do not add, modify, paraphrase, or alter the
     ];
   }
 
-  // Immediately call the AI chat completion API.
+  // Call the OpenAI chat completion API.
   try {
     const openaiResponse = await openai.chat.completions.create({
-      model: "gpt-3.5-turbo",
+      model: "gpt-4o-mini",
       messages: conversation,
       max_tokens: 150,
     });

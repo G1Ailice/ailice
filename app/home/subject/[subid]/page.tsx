@@ -15,9 +15,13 @@ import {
   DialogActions,
   useMediaQuery,
   CircularProgress,
+  IconButton,
+  Avatar
 } from "@mui/material";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import StarIcon from "@mui/icons-material/Star"; // <-- Import StarIcon from MUI
+import EmojiEventsRoundedIcon from '@mui/icons-material/EmojiEventsRounded';
 import { useTheme } from "@mui/material/styles";
 
 // Initialize Supabase Client
@@ -25,11 +29,26 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// Helper: Format seconds to HH:MM:SS.
+const formatTime = (seconds: number) => {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const hh = h.toString().padStart(2, "0");
+  const mm = m.toString().padStart(2, "0");
+  const ss = s.toString().padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
+};
+
 const LessonsPage = () => {
   const { subid } = useParams();
   const router = useRouter();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+
+  // Global state for the current authenticated user (fetched once)
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
   const [subjectName, setSubjectName] = useState("");
   const [lessons, setLessons] = useState<any[]>([]);
   const [trials, setTrials] = useState<any[]>([]);
@@ -43,20 +62,157 @@ const LessonsPage = () => {
   const [finishedTrials, setFinishedTrials] = useState<any[]>([]);
   // Flag to prevent multiple clicks while processing an action
   const [isProcessing, setIsProcessing] = useState(false);
+  // New state to hold the star rating (max 3)
+  const [starRating, setStarRating] = useState<number>(0);
+  // New states for best trial score and time concluded (in seconds)
+  const [trialScore, setTrialScore] = useState<number>(0);
+  const [timeConcluded, setTimeConcluded] = useState<number>(0);
+  // New state to track if a trial attempt exists
+  const [attempted, setAttempted] = useState<boolean>(false);
 
-  // Fetch initial data and finished trials on mount
+  // New state for ranking dialog and its data
+  const [openRankingDialog, setOpenRankingDialog] = useState<boolean>(false);
+  const [rankingData, setRankingData] = useState<any[]>([]);
+
+  const [unlockedLessons, setUnlockedLessons] = useState<Record<string, boolean>>({});
+
+  // 1. Fetch current user
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
+    const fetchCurrentUser = async () => {
       try {
-        const authResponse = await fetch("/api/check-auth", {
+        const response = await fetch("/api/check-auth", {
           method: "GET",
           credentials: "include",
         });
-        if (!authResponse.ok) {
+        if (!response.ok) {
           router.push("/");
           return;
         }
+        const user = await response.json();
+        setCurrentUser(user);
+      } catch (error) {
+        console.error("Error fetching current user:", error);
+        router.push("/");
+      }
+    };
+    fetchCurrentUser();
+  }, [router]);
+
+  // 2. Check unlocked lessons (for Locked lessons)
+  useEffect(() => {
+    if (!currentUser || lessons.length === 0) return;
+
+    const checkUnlockedLessons = async () => {
+      const newUnlockedLessons: Record<string, boolean> = {};
+
+      // Utility function: calculate level from exp.
+      const calculateLevel = (exp: number | null) => {
+        if (!exp || exp <= 0) return { level: 1, currentExp: 0, nextExp: 100 };
+        let level = 1;
+        let expNeeded = 100;
+        while (exp >= expNeeded && level < 100) {
+          exp -= expNeeded;
+          level++;
+          expNeeded += 50;
+        }
+        return { level, currentExp: exp, nextExp: expNeeded };
+      };
+
+      for (const lesson of lessons) {
+        if (lesson.status === "Locked") {
+          const trialIdToCheck = lesson.unlocked_by;
+          if (!trialIdToCheck) {
+            newUnlockedLessons[lesson.id] = false;
+            continue;
+          }
+          // Query trial_data for the best record for this trial and user.
+          const { data: trialDataRecords, error } = await supabase
+            .from("trial_data")
+            .select("eval_score, star")
+            .eq("user_id", currentUser.id)
+            .eq("trial_id", trialIdToCheck)
+            .order("eval_score", { ascending: false })
+            .limit(1);
+
+          if (error || !trialDataRecords || trialDataRecords.length === 0) {
+            newUnlockedLessons[lesson.id] = false;
+            continue;
+          }
+
+          const bestRecord = trialDataRecords[0];
+          if (bestRecord.star >= 2) {
+            if (!lesson.level_req) {
+              newUnlockedLessons[lesson.id] = true;
+            } else {
+              const requiredLevel = Number(lesson.level_req);
+              const userExp = Number(currentUser.exp);
+              const userLevelData = calculateLevel(userExp);
+              newUnlockedLessons[lesson.id] = userLevelData.level >= requiredLevel;
+            }
+          } else {
+            newUnlockedLessons[lesson.id] = false;
+          }
+        } else {
+          newUnlockedLessons[lesson.id] = true;
+        }
+      }
+      setUnlockedLessons(newUnlockedLessons);
+    };
+
+    checkUnlockedLessons();
+  }, [currentUser, lessons]);
+
+  // 3. Remove expired trials
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const removeExpiredTrials = async () => {
+      try {
+        const now = new Date();
+        const offsetMs = 8 * 60 * 60 * 1000;
+        const currentTime = new Date(now.getTime() + offsetMs);
+        const currentTimeISO = currentTime.toISOString();
+
+        const { data: expiredTrials, error } = await supabase
+          .from("trial_data")
+          .select("*")
+          .eq("user_id", currentUser.id)
+          .eq("status", "Ongoing")
+          .lte("end_time", currentTimeISO);
+
+        if (error) {
+          console.error("Error fetching expired trials:", error);
+          return;
+        }
+
+        if (expiredTrials && expiredTrials.length > 0) {
+          for (const trial of expiredTrials) {
+            const { error: deleteError } = await supabase
+              .from("trial_data")
+              .delete()
+              .eq("id", trial.id);
+            if (deleteError) {
+              console.error("Error deleting expired trial:", deleteError);
+            } else {
+              console.log(`Expired trial with id ${trial.id} removed.`);
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error in removeExpiredTrials effect:", err);
+      }
+    };
+
+    removeExpiredTrials();
+  }, [currentUser]);
+
+  // 4. Fetch data: subjects, lessons, trials, finished trials.
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const fetchData = async () => {
+      setLoading(true);
+      try {
         const { data: subjectData } = await supabase
           .from("subjects")
           .select("sub")
@@ -73,13 +229,10 @@ const LessonsPage = () => {
         const { data: trialData } = await supabase.from("trials").select("*");
         setTrials(trialData || []);
 
-        // Fetch finished trial records for current user
-        const userData = await authResponse.json();
-        const userId = userData.id;
         const { data: finishedData, error: finishedError } = await supabase
           .from("trial_data")
           .select("*")
-          .eq("user_id", userId)
+          .eq("user_id", currentUser.id)
           .eq("status", "Finished");
         if (finishedError) {
           console.error("Error fetching finished trial records:", finishedError);
@@ -93,42 +246,31 @@ const LessonsPage = () => {
       }
     };
     fetchData();
-  }, [subid, router]);
+  }, [subid, router, currentUser]);
 
-  // Check ongoing trial data for the logged-in user
+  // 5. Check ongoing trial data.
   useEffect(() => {
+    if (!currentUser) return;
+
     const checkOngoingTrial = async () => {
       try {
-        const authResponse = await fetch("/api/check-auth", {
-          method: "GET",
-          credentials: "include",
-        });
-        if (!authResponse.ok) {
-          console.error("Authentication failed for ongoing trial check");
-          return;
-        }
-        const userData = await authResponse.json();
-        const userId = userData.id;
         const { data, error } = await supabase
           .from("trial_data")
           .select("*")
-          .eq("user_id", userId)
+          .eq("user_id", currentUser.id)
           .eq("status", "Ongoing");
         if (error) {
           console.error("Error fetching ongoing trial:", error);
           return;
         }
-        // Calculate current Philippine time (UTC+8)
         const now = new Date();
         const offsetMs = 8 * 60 * 60 * 1000;
         const currentTime = new Date(now.getTime() + offsetMs);
         let ongoing = null;
         if (data && data.length > 0) {
-          // Loop through ongoing trials. If a trial's end_time has passed, update its status.
           for (const trial of data) {
             const trialEndTime = new Date(trial.end_time);
             if (trialEndTime <= currentTime) {
-              // Update trial status to "Finished"
               const { error: updateError } = await supabase
                 .from("trial_data")
                 .update({ status: "Finished" })
@@ -137,7 +279,6 @@ const LessonsPage = () => {
                 console.error("Error updating trial status:", updateError);
               }
             } else {
-              // Save the first trial that is still ongoing
               ongoing = trial;
               break;
             }
@@ -149,14 +290,13 @@ const LessonsPage = () => {
       }
     };
     checkOngoingTrial();
-  }, []);
+  }, [currentUser]);
 
-  // Generate a 6-digit UUID
+  // 6. Utility: Generate a 6-digit UUID and ensure uniqueness.
   const generate6DigitUUID = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
 
-  // Helper to ensure the generated id is unique in the trial_data table
   const generateUniqueTrialDataId = async (): Promise<string> => {
     let unique = false;
     let trialDataId = "";
@@ -176,21 +316,11 @@ const LessonsPage = () => {
     return trialDataId;
   };
 
+  // 7. Functions to start/resume a trial.
   const startTrial = async (trialId: string) => {
-    if (!trialId || isProcessing) return;
+    if (!trialId || isProcessing || !currentUser) return;
     setIsProcessing(true);
     try {
-      const authResponse = await fetch("/api/check-auth", {
-        method: "GET",
-        credentials: "include",
-      });
-      if (!authResponse.ok) {
-        console.error("Authentication failed");
-        setIsProcessing(false);
-        return;
-      }
-      const userData = await authResponse.json();
-      const userId = userData.id;
       const trialDataId = await generateUniqueTrialDataId();
       const now = new Date();
       const offsetMs = 8 * 60 * 60 * 1000;
@@ -225,7 +355,7 @@ const LessonsPage = () => {
       const { error } = await supabase.from("trial_data").insert([
         {
           id: trialDataId,
-          user_id: userId,
+          user_id: currentUser.id,
           trial_id: trialId,
           start_time: startTime,
           end_time: endTime,
@@ -237,19 +367,20 @@ const LessonsPage = () => {
         setIsProcessing(false);
         return;
       }
-      // Navigation; no need to reset processing flag as user leaves page.
       router.push(`/home/subject/${subid}/trial/${trialId}/${trialDataId}`);
     } catch (error) {
       console.error("Error starting trial:", error);
       setIsProcessing(false);
     }
+
+    triggerAction();
   };
 
-  // Function to resume an ongoing trial
   const resumeTrial = () => {
     if (isProcessing || !ongoingTrial || !selectedTrial) return;
     setIsProcessing(true);
     router.push(`/home/subject/${subid}/trial/${selectedTrial.id}/${ongoingTrial.id}`);
+    triggerAction();
   };
 
   const handleLessonRedirect = () => {
@@ -258,17 +389,117 @@ const LessonsPage = () => {
     router.push(`/home/subject/${subid}/lessons/${selectedLesson.id}`);
   };
 
+  // --- IMPORTANT: Reset the attempted state when opening a new lesson dialog ---
   const handleLessonClick = (lesson: any) => {
+    setAttempted(false); // Reset attempted status for the new lesson
+    setStarRating(0);
     setSelectedLesson(lesson);
     const trial = trials.find((trial) => trial.lesson_id === lesson.id);
     setSelectedTrial(trial || null);
     setDialogOpen(true);
   };
 
+  const triggerAction = () => {
+    const event = new Event("childAction");
+    document.dispatchEvent(event);
+  };
+
+  // --- Also reset attempted state when closing the dialog ---
   const closeDialog = () => {
     setDialogOpen(false);
     setSelectedLesson(null);
     setSelectedTrial(null);
+    setStarRating(0);
+    setAttempted(false);
+  };
+
+  // 8. Fetch and set the star rating, trial score and time concluded when dialog opens.
+  //     Updated to set "attempted" to false when no trial data exists.
+  useEffect(() => {
+    if (dialogOpen && currentUser && selectedTrial) {
+      const fetchStarRating = async () => {
+        try {
+          const { data, error } = await supabase
+            .from("trial_data")
+            .select("star, score, time_concluded")
+            .eq("user_id", currentUser.id)
+            .eq("trial_id", selectedTrial.id)
+            .order("score", { ascending: false })
+            .limit(1);
+          if (error) {
+            console.error("Error fetching best trial data:", error);
+            setAttempted(false);
+            setStarRating(0);
+            setTrialScore(0);
+            setTimeConcluded(0);
+          } else if (data && data.length > 0) {
+            setAttempted(true);
+            setStarRating(data[0].star || 0);
+            setTrialScore(data[0].score || 0);
+            setTimeConcluded(data[0].time_concluded || 0);
+          } else {
+            // No trial data exists for this trial and user.
+            setAttempted(false);
+            setStarRating(0);
+            setTrialScore(0);
+            setTimeConcluded(0);
+          }
+        } catch (err) {
+          console.error("Error in fetchStarRating:", err);
+          setAttempted(false);
+          setStarRating(0);
+          setTrialScore(0);
+          setTimeConcluded(0);
+        }
+      };
+      fetchStarRating();
+    }
+  }, [dialogOpen, currentUser, selectedTrial]);
+
+  // --- Ranking dialog logic ---
+  const fetchRankingData = async () => {
+    if (!selectedTrial) return;
+    try {
+      // Fetch trial_data records for the current trial that are finished
+      const { data: trialRecords, error: trialError } = await supabase
+        .from("trial_data")
+        .select("user_id, eval_score")
+        .eq("trial_id", selectedTrial.id)
+        .eq("status", "Finished")
+        .order("eval_score", { ascending: false })
+        .limit(10);
+      if (trialError) {
+        console.error("Error fetching ranking data:", trialError);
+        return;
+      }
+      if (!trialRecords || trialRecords.length === 0) {
+        setRankingData([]);
+        return;
+      }
+
+      // Extract unique user_ids from trialRecords
+      const userIds = trialRecords.map((rec: any) => rec.user_id);
+      // Fetch user details in one query
+      const { data: usersData, error: usersError } = await supabase
+        .from("users")
+        .select("id, username, profile_pic")
+        .in("id", userIds);
+      if (usersError) {
+        console.error("Error fetching user details for ranking:", usersError);
+        return;
+      }
+
+      // Merge trialRecords with user details
+      const mergedRanking = trialRecords.map((record: any) => {
+        const user = usersData?.find((u: any) => u.id === record.user_id);
+        return { ...record, username: user?.username, profile_pic: user?.profile_pic };
+      });
+
+      setRankingData(mergedRanking);
+      setOpenRankingDialog(true);
+    } catch (error) {
+      console.error("Error in fetchRankingData:", error);
+    }
   };
 
   if (loading) {
@@ -279,7 +510,7 @@ const LessonsPage = () => {
     );
   }
 
-  // Group lessons into main lessons and sub-lessons
+  // Group lessons into main and sub-lessons
   const groupedLessons: Record<string, { main: any | null; sub: any[] }> =
     lessons.reduce((acc, lesson) => {
       const lessonNoParts = lesson.lesson_no.toString().split(".");
@@ -295,7 +526,6 @@ const LessonsPage = () => {
       return acc;
     }, {} as Record<string, { main: any; sub: any[] }>);
 
-  // Check locally if a finished record exists for the selected trial
   const finishedTrialExists =
     selectedTrial &&
     finishedTrials.some((ft: any) => ft.trial_id === selectedTrial.id);
@@ -330,16 +560,16 @@ const LessonsPage = () => {
                   <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
                     {main && (
                       <Button
-                        disabled={isProcessing}
+                        disabled={isProcessing || (main.status === "Locked" && !unlockedLessons[main.id])}
                         sx={{
                           p: 1.5,
-                          backgroundColor: "primary.main",
+                          backgroundColor: main.status === "Locked" && !unlockedLessons[main.id] ? "#ccc" : "primary.main",
                           color: "primary.contrastText",
                           textTransform: "none",
                           transition: "transform 0.3s",
                           "&:hover": {
                             transform: "scale(1.01)",
-                            backgroundColor: "primary.dark",
+                            backgroundColor: main.status === "Locked" && !unlockedLessons[main.id] ? "#ccc" : "primary.dark",
                           },
                         }}
                         onClick={() => handleLessonClick(main)}
@@ -353,14 +583,16 @@ const LessonsPage = () => {
                     {sub.map((subLesson) => (
                       <Button
                         key={subLesson.id}
-                        disabled={isProcessing}
+                        disabled={isProcessing || (subLesson.status === "Locked" && !unlockedLessons[subLesson.id])}
                         sx={{
                           p: 1,
-                          backgroundColor: "#0D47A1",
+                          backgroundColor: subLesson.status === "Locked" && !unlockedLessons[subLesson.id] ? "#ccc" : "#0D47A1",
                           color: "white",
                           textTransform: "none",
                           fontSize: "0.9rem",
-                          "&:hover": { backgroundColor: "#08306b" },
+                          "&:hover": {
+                            backgroundColor: subLesson.status === "Locked" && !unlockedLessons[subLesson.id] ? "#ccc" : "#08306b",
+                          },
                         }}
                         onClick={() => handleLessonClick(subLesson)}
                       >
@@ -378,16 +610,27 @@ const LessonsPage = () => {
         </Paper>
       </Box>
 
+      {/* Lesson Dialog */}
       <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
-        <DialogTitle
-          sx={{
-            backgroundColor: "primary.main",
-            color: "primary.contrastText",
-            textAlign: "center",
-          }}
-        >
+      <DialogTitle
+        sx={{
+          backgroundColor: "primary.main",
+          color: "primary.contrastText",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center"
+        }}
+      >
+        <Typography variant="h6" component="span">
           {selectedLesson?.lesson_title}
-        </DialogTitle>
+        </Typography>
+        {/* Ranking Icon Button */}
+        {selectedTrial && (
+          <IconButton onClick={fetchRankingData} sx={{ color: "white" }}>
+            <EmojiEventsRoundedIcon />
+          </IconButton>
+        )}
+      </DialogTitle>
         <DialogContent dividers sx={{ padding: "1.5rem" }}>
           <Typography
             variant="body1"
@@ -396,16 +639,49 @@ const LessonsPage = () => {
             {selectedLesson?.description || "No description available."}
           </Typography>
         </DialogContent>
+
         <DialogActions
           sx={{
             justifyContent: "space-between",
+            alignItems: "center",
             paddingBottom: "1rem",
             paddingX: "1.5rem",
           }}
         >
+          {/* Left: Close button */}
           <Button onClick={closeDialog} sx={{ color: "error.main" }} disabled={isProcessing}>
             Close
           </Button>
+
+          {/* Center: Label, Star rating display (or "Not Yet Attempted"), and Score/Remaining Time info */}
+          <Box display="flex" flexDirection="column" alignItems="center">
+            <Typography variant="caption" sx={{ mb: 0.5 }}>
+              Trial Attempt Rating
+            </Typography>
+            {attempted ? (
+              <Box display="flex" justifyContent="center">
+                {[0, 1, 2].map((i) => (
+                  <StarIcon key={i} sx={{ color: i < starRating ? "gold" : "gray", mx: 1 }} />
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="caption" sx={{ mb: 0.5 }}>
+                Not Yet Attempted
+              </Typography>
+            )}
+            {selectedTrial && attempted && (
+              <Box mt={0.5} textAlign="center">
+                <Typography sx={{ fontSize: isMobile ? "0.6rem" : "0.75rem" }}>
+                  Score: {trialScore}/{selectedTrial.allscore}
+                </Typography>
+                <Typography sx={{ fontSize: isMobile ? "0.6rem" : "0.75rem" }}>
+                  Remaining Time: {formatTime(timeConcluded)}/{formatTime(selectedTrial.time)}
+                </Typography>
+              </Box>
+            )}
+          </Box>
+
+          {/* Right: Other action buttons */}
           <Box display="flex" flexDirection="column" gap={1}>
             <Button
               disabled={isProcessing}
@@ -453,7 +729,6 @@ const LessonsPage = () => {
                     </Button>
                   )
                 ) : finishedTrialExists ? (
-                  // Immediately show the retry button (in red) if a finished record exists.
                   <Button
                     disabled={isProcessing}
                     sx={{
@@ -487,6 +762,64 @@ const LessonsPage = () => {
               </>
             )}
           </Box>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={openRankingDialog} onClose={() => setOpenRankingDialog(false)} maxWidth="sm" fullWidth>
+        <DialogTitle
+          sx={{
+            backgroundColor: "primary.main",
+            color: "primary.contrastText",
+            textAlign: "center",
+          }}
+        >
+          Trial Learner Ranking
+        </DialogTitle>
+        <DialogContent dividers sx={{ padding: "1.5rem" }}>
+          {rankingData && rankingData.length > 0 ? (
+            rankingData.map((record, index) => {
+              const rank = index + 1;
+              const rankColor =
+                rank === 1 ? "gold" :
+                rank === 2 ? "silver" :
+                rank === 3 ? "#cd7f32" : "blue";
+              return (
+                <Box key={record.user_id} display="flex" alignItems="center" gap={2} mb={1}>
+                  {/* Rank number in a circular box */}
+                  <Box
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      border: `2px solid ${rankColor}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: rankColor,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {rank}
+                  </Box>
+                  <Avatar
+                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${record.profile_pic}`}
+                    alt={record.username}
+                  />
+                  <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
+                    {record.username}
+                  </Typography>
+                  <Typography variant="subtitle1">Rank Score: {record.eval_score}</Typography>
+                </Box>
+              );
+            })
+          ) : (
+            <Typography variant="body1">No ranking data available.</Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: "center" }}>
+          <Button onClick={() => setOpenRankingDialog(false)} color="primary">
+            Close
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>
