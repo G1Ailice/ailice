@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -16,13 +16,23 @@ import {
   useMediaQuery,
   CircularProgress,
   IconButton,
-  Avatar
+  Avatar,
+  Slide,
 } from "@mui/material";
+import { TransitionProps } from "@mui/material/transitions";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
-import StarIcon from "@mui/icons-material/Star"; // <-- Import StarIcon from MUI
-import EmojiEventsRoundedIcon from '@mui/icons-material/EmojiEventsRounded';
+import StarIcon from "@mui/icons-material/Star";
+import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
 import { useTheme } from "@mui/material/styles";
+
+// Create a Transition component using Slide
+const Transition = React.forwardRef(function Transition(
+  props: TransitionProps & { children: React.ReactElement<any, any> },
+  ref: React.Ref<unknown>
+) {
+  return <Slide direction="up" ref={ref} {...props} />;
+});
 
 // Initialize Supabase Client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -413,48 +423,28 @@ const LessonsPage = () => {
     setAttempted(false);
   };
 
-  // 8. Fetch and set the star rating, trial score and time concluded when dialog opens.
-  //     Updated to set "attempted" to false when no trial data exists.
+  // 8. Instantly compute and display star rating, trial score, and time concluded
+  //     using the already fetched finishedTrials state.
   useEffect(() => {
-    if (dialogOpen && currentUser && selectedTrial) {
-      const fetchStarRating = async () => {
-        try {
-          const { data, error } = await supabase
-            .from("trial_data")
-            .select("star, score, time_concluded")
-            .eq("user_id", currentUser.id)
-            .eq("trial_id", selectedTrial.id)
-            .order("score", { ascending: false })
-            .limit(1);
-          if (error) {
-            console.error("Error fetching best trial data:", error);
-            setAttempted(false);
-            setStarRating(0);
-            setTrialScore(0);
-            setTimeConcluded(0);
-          } else if (data && data.length > 0) {
-            setAttempted(true);
-            setStarRating(data[0].star || 0);
-            setTrialScore(data[0].score || 0);
-            setTimeConcluded(data[0].time_concluded || 0);
-          } else {
-            // No trial data exists for this trial and user.
-            setAttempted(false);
-            setStarRating(0);
-            setTrialScore(0);
-            setTimeConcluded(0);
-          }
-        } catch (err) {
-          console.error("Error in fetchStarRating:", err);
-          setAttempted(false);
-          setStarRating(0);
-          setTrialScore(0);
-          setTimeConcluded(0);
-        }
-      };
-      fetchStarRating();
+    if (dialogOpen && selectedTrial) {
+      const trialRecords = finishedTrials.filter(
+        (ft: any) => ft.trial_id === selectedTrial.id
+      );
+      if (trialRecords.length > 0) {
+        trialRecords.sort((a, b) => b.score - a.score);
+        const bestRecord = trialRecords[0];
+        setAttempted(true);
+        setStarRating(bestRecord.star || 0);
+        setTrialScore(bestRecord.score || 0);
+        setTimeConcluded(bestRecord.time_concluded || 0);
+      } else {
+        setAttempted(false);
+        setStarRating(0);
+        setTrialScore(0);
+        setTimeConcluded(0);
+      }
     }
-  }, [dialogOpen, currentUser, selectedTrial]);
+  }, [dialogOpen, selectedTrial, finishedTrials]);
 
   // --- Ranking dialog logic ---
   const fetchRankingData = async () => {
@@ -610,32 +600,35 @@ const LessonsPage = () => {
         </Paper>
       </Box>
 
-      {/* Lesson Dialog */}
-      <Dialog open={dialogOpen} onClose={closeDialog} maxWidth="sm" fullWidth>
-      <DialogTitle
-        sx={{
-          backgroundColor: "primary.main",
-          color: "primary.contrastText",
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center"
-        }}
+      {/* Lesson Dialog with Transition */}
+      <Dialog
+        open={dialogOpen}
+        onClose={closeDialog}
+        maxWidth="sm"
+        fullWidth
+        TransitionComponent={Transition}
       >
-        <Typography variant="h6" component="span">
-          {selectedLesson?.lesson_title}
-        </Typography>
-        {/* Ranking Icon Button */}
-        {selectedTrial && (
-          <IconButton onClick={fetchRankingData} sx={{ color: "white" }}>
-            <EmojiEventsRoundedIcon />
-          </IconButton>
-        )}
-      </DialogTitle>
+        <DialogTitle
+          sx={{
+            backgroundColor: "primary.main",
+            color: "primary.contrastText",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+          }}
+        >
+          <Typography variant="h6" component="span">
+            {selectedLesson?.lesson_title}
+          </Typography>
+          {/* Ranking Icon Button */}
+          {selectedTrial && (
+            <IconButton onClick={fetchRankingData} sx={{ color: "white" }}>
+              <EmojiEventsRoundedIcon />
+            </IconButton>
+          )}
+        </DialogTitle>
         <DialogContent dividers sx={{ padding: "1.5rem" }}>
-          <Typography
-            variant="body1"
-            sx={{ marginBottom: "1rem", color: "text.secondary" }}
-          >
+          <Typography variant="body1" sx={{ marginBottom: "1rem", color: "text.secondary" }}>
             {selectedLesson?.description || "No description available."}
           </Typography>
         </DialogContent>
@@ -765,7 +758,14 @@ const LessonsPage = () => {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={openRankingDialog} onClose={() => setOpenRankingDialog(false)} maxWidth="sm" fullWidth>
+      {/* Ranking Dialog with Transition */}
+      <Dialog
+        open={openRankingDialog}
+        onClose={() => setOpenRankingDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        TransitionComponent={Transition}
+      >
         <DialogTitle
           sx={{
             backgroundColor: "primary.main",

@@ -76,6 +76,8 @@ const TrialPage = () => {
   const [allScore, setAllScore] = useState<number>(0);
   const [allocatedTime, setAllocatedTime] = useState<number>(0);
   const [attemptMessage, setAttemptMessage] = useState<string>("");
+  // New state for gained EXP info
+  const [gainedExp, setGainedExp] = useState<number>(0);
 
   // Ref for countdown timer
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -113,10 +115,10 @@ const TrialPage = () => {
           return;
         }
 
-        // Get trial info
+        // Get trial info (ensure your trials table includes "trial_title", "time", "allscore", "exp_gain" and "first_exp")
         const { data: trialInfoRes, error: trialInfoError } = await supabase
           .from("trials")
-          .select("id, trial_title, time, allscore")
+          .select("id, trial_title, time, allscore, exp_gain, first_exp")
           .eq("id", trialId)
           .single();
         if (trialInfoError || !trialInfoRes) {
@@ -216,7 +218,7 @@ const TrialPage = () => {
     if (hasFinished) return;
     setHasFinished(true);
     setIsSubmitting(true);
-
+  
     let totalPoints = 0;
     // Loop through each question, calculate points, and insert a q_data record.
     for (const question of questions) {
@@ -253,19 +255,19 @@ const TrialPage = () => {
         },
       ]);
     }
-
+  
     const finalRemaining = overrideRemaining !== undefined ? overrideRemaining : remainingTime;
-
+  
     // Compute stars.
     const star1 = true;
     const star2 = star1 && (allScore > 0 ? totalPoints / allScore >= 0.7 : false);
     const star3 = star2 && (allocatedTime > 0 ? remainingTime / allocatedTime >= 0.35 : false);
     const starCount = 1 + (star2 ? 1 : 0) + (star3 ? 1 : 0);
-
-    // Calculate new evaluation score.
-    const rawEval = (((totalPoints / allScore) + (remainingTime / allocatedTime)) / 2) * 100;
+  
+    // Calculate new evaluation score using 70% weight for score and 30% for remaining time.
+    const rawEval = (((totalPoints / allScore) * 0.7) + ((remainingTime / allocatedTime) * 0.3)) * 100;
     const newEval = Number(rawEval.toFixed(1));
-
+  
     // Update current trial_data record.
     await supabase
       .from("trial_data")
@@ -277,10 +279,35 @@ const TrialPage = () => {
         eval_score: newEval.toString()
       })
       .eq("id", trial_dataId);
-
+  
+    // --- EXP Calculation (unchanged) ---
+    const expGain = trialInfo.exp_gain ? Number(trialInfo.exp_gain) : 0;
+    const gainedExpStars = (starCount / 3) * expGain;
+  
+    const { count: attemptCount } = await supabase
+      .from("trial_data")
+      .select("id", { count: "exact", head: true })
+      .eq("trial_id", trialId)
+      .eq("user_id", userId);
+  
+    const bonusExp = attemptCount === 1 && trialInfo.first_exp ? Number(trialInfo.first_exp) : 0;
+    const totalExpGained = gainedExpStars + bonusExp;
+  
+    const { data: userRecord } = await supabase
+      .from("users")
+      .select("exp")
+      .eq("id", userId)
+      .single();
+    const currentExp = userRecord && userRecord.exp ? Number(userRecord.exp) : 0;
+    const newExp = currentExp + totalExpGained;
+    await supabase
+      .from("users")
+      .update({ exp: newExp })
+      .eq("id", userId);
+  
+    setGainedExp(totalExpGained);
+  
     let localAttemptMessage = "";
-
-    // Fetch all attempts for the current trial and user.
     const { data: allAttempts } = await supabase
       .from("trial_data")
       .select("id, eval_score")
@@ -288,24 +315,32 @@ const TrialPage = () => {
       .eq("user_id", userId);
 
     if (allAttempts && allAttempts.length >= 2) {
-      // Convert each eval_score from text to a number.
+      // Convert each attempt's eval_score from text to a number.
       const attempts = allAttempts.map((att) => ({
         id: att.id,
         eval: parseFloat(att.eval_score) || 0,
       }));
       // Determine the maximum evaluation score.
       const maxEval = Math.max(...attempts.map((a) => a.eval));
-      // Identify attempts with an evaluation score lower than the maximum.
-      const lowerAttempts = attempts.filter((a) => a.eval < maxEval);
-      // Delete all attempts that have a lower score.
-      for (const lowerAttempt of lowerAttempts) {
-        // First, delete associated q_data records using the low eval trial_data id.
-        await supabase.from("q_data").delete().eq("t_dataid", lowerAttempt.id);
-        // Then, delete the trial_data record.
-        await supabase.from("trial_data").delete().eq("id", lowerAttempt.id);
+      // Get all attempts with the maximum eval_score.
+      const bestAttempts = attempts.filter((a) => a.eval === maxEval);
+      // If there is more than one attempt with the max score,
+      // we choose to keep the first one and mark the others for deletion.
+      let attemptsToDelete: { id: string; eval: number }[] = [];
+      if (bestAttempts.length > 1) {
+        attemptsToDelete = bestAttempts.slice(1);
       }
-      // If the current attempt was among the ones deleted, then it did not beat the best.
-      if (lowerAttempts.some((a) => a.id === trial_dataId)) {
+      // Also mark attempts with a lower evaluation score for deletion.
+      const lowerAttempts = attempts.filter((a) => a.eval < maxEval);
+      attemptsToDelete = attemptsToDelete.concat(lowerAttempts);
+
+      // Delete associated q_data and trial_data records for the attempts to delete.
+      for (const att of attemptsToDelete) {
+        await supabase.from("q_data").delete().eq("t_dataid", att.id);
+        await supabase.from("trial_data").delete().eq("id", att.id);
+      }
+      // Set the attempt message based on whether the current attempt was deleted.
+      if (attemptsToDelete.some((a) => a.id === trial_dataId)) {
         localAttemptMessage = "Try again next time";
       } else {
         localAttemptMessage = "You beat your previous attempt";
@@ -313,14 +348,14 @@ const TrialPage = () => {
     } else {
       localAttemptMessage = "Good job completing the trial";
     }
-
+  
     setFinalScore(totalPoints);
     setAttemptMessage(localAttemptMessage);
     setOpenDialog(true);
     setIsSubmitting(false);
-
+  
     triggerAction();
-  };
+  };  
 
   const triggerAction = () => {
     const event = new Event('childAction');
@@ -329,8 +364,8 @@ const TrialPage = () => {
 
   const handleDialogClose = () => {
     setOpenDialog(false);
-    router.push("/home");
-  };
+    router.back();
+  };  
 
   if (loading) {
     return (
@@ -348,7 +383,7 @@ const TrialPage = () => {
     );
   }
 
-  // For dialog display: recompute stars.
+  // For dialog display: recompute stars for display.
   const star1Display = true;
   const star2Display = star1Display && (allScore > 0 ? finalScore / allScore >= 0.7 : false);
   const star3Display = star2Display && (allocatedTime > 0 ? remainingTime / allocatedTime >= 0.35 : false);
@@ -370,7 +405,6 @@ const TrialPage = () => {
         {currentQuestion && (
           <Slide in={true} direction={slideDirection} timeout={300} mountOnEnter unmountOnExit key={currentQuestion.id}>
             <Paper elevation={3} sx={{ p: { xs: 2, md: 3 } }}>
-              {/* Numbered question header */}
               <Box sx={{ mb: 2 }}>
                 <Typography variant="h6" sx={{ fontWeight: "medium" }}>
                   Question {currentQuestionIndex + 1} of {questions.length}
@@ -485,6 +519,7 @@ const TrialPage = () => {
         </Button>
       </Box>
 
+      {/* Finish Dialog */}
       <Dialog open={openDialog} onClose={handleDialogClose} fullWidth maxWidth="sm">
         <DialogTitle sx={{ textAlign: "center", fontWeight: "bold" }}>
           Trial Done!
@@ -503,6 +538,12 @@ const TrialPage = () => {
             {star1Display ? <StarIcon color="warning" fontSize="large" /> : <StarBorderIcon fontSize="large" />}
             {star2Display ? <StarIcon color="warning" fontSize="large" /> : <StarBorderIcon fontSize="large" />}
             {star3Display ? <StarIcon color="warning" fontSize="large" /> : <StarBorderIcon fontSize="large" />}
+          </Box>
+          {/* Display the gained EXP info */}
+          <Box sx={{ mt: 2, textAlign: "center" }}>
+            <Typography variant="h6" sx={{ color: "green" }}>
+              Gained Exp: +{gainedExp}
+            </Typography>
           </Box>
           {attemptMessage && (
             <Box sx={{ mt: 2, textAlign: "center" }}>

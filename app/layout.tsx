@@ -55,6 +55,7 @@ export default function Layout1({
         <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#000000" />
+        <meta name="description" content="Ailice is a website where you can learn, challenge, and gain achievement each progress. Explore and interact with the AI chatbot if you get stuck on some lessons." />
         <title>Ailice</title>
         <link rel="icon" href="/icons/ailice_192x192.png" type="image/png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
