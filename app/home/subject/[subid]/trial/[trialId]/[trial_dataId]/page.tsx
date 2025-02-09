@@ -23,6 +23,7 @@ import DialogContent from "@mui/material/DialogContent";
 import DialogActions from "@mui/material/DialogActions";
 import StarIcon from "@mui/icons-material/Star";
 import StarBorderIcon from "@mui/icons-material/StarBorder";
+import HelpTwoToneIcon from "@mui/icons-material/HelpTwoTone";
 import { createClient } from "@supabase/supabase-js";
 
 // Initialize the Supabase client using public keys.
@@ -38,6 +39,19 @@ const formatTime = (seconds: number) => {
   const mins = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
   const secs = String(seconds % 60).padStart(2, "0");
   return `${hrs}:${mins}:${secs}`;
+};
+
+/**
+ * Helper function to get current Philippine (Manila) time as an ISO string.
+ *
+ * This function calculates UTC time from the local time then adds 8 hours (480 minutes)
+ * to return the current time in Manila as an ISO-formatted string.
+ */
+const getManilaTimeISO = () => {
+  const now = new Date();
+  const utc = now.getTime() + now.getTimezoneOffset() * 60000;
+  const manila = new Date(utc + 8 * 60 * 60000);
+  return manila.toISOString();
 };
 
 interface Question {
@@ -76,14 +90,28 @@ const TrialPage = () => {
   const [allScore, setAllScore] = useState<number>(0);
   const [allocatedTime, setAllocatedTime] = useState<number>(0);
   const [attemptMessage, setAttemptMessage] = useState<string>("");
+
   // New state for gained EXP info
   const [gainedExp, setGainedExp] = useState<number>(0);
+
+  // New state for hidden achievement info
+  const [hiddenAchvAchieved, setHiddenAchvAchieved] = useState<boolean>(false);
+  const [hiddenAchvDetails, setHiddenAchvDetails] = useState<{
+    name: string;
+    description: string;
+    image: string;
+  } | null>(null);
 
   // Ref for countdown timer
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Slide animation direction ("left" for next, "right" for prev)
   const [slideDirection, setSlideDirection] = useState<"left" | "right">("left");
+
+  // Keys for localStorage
+  const questionOrderKey = `trialOrder_${trialId}`;
+  const userAnswersKey = `userAnswers_${trial_dataId}`;
+  const currentIndexKey = `currentQuestionIndex_${trial_dataId}`;
 
   useEffect(() => {
     const fetchData = async () => {
@@ -115,10 +143,12 @@ const TrialPage = () => {
           return;
         }
 
-        // Get trial info (ensure your trials table includes "trial_title", "time", "allscore", "exp_gain" and "first_exp")
+        // Get trial info (we now include hd_condition and hd_achv_id)
         const { data: trialInfoRes, error: trialInfoError } = await supabase
           .from("trials")
-          .select("id, trial_title, time, allscore, exp_gain, first_exp")
+          .select(
+            "id, trial_title, time, allscore, exp_gain, first_exp, hd_condition, hd_achv_id"
+          )
           .eq("id", trialId)
           .single();
         if (trialInfoError || !trialInfoRes) {
@@ -137,7 +167,7 @@ const TrialPage = () => {
         const remaining = trialInfoRes.time - elapsedSeconds;
         setRemainingTime(remaining > 0 ? remaining : 0);
 
-        // Get questions and shuffle them only once.
+        // Get questions and determine order.
         const { data: questionsRes, error: questionsError } = await supabase
           .from("questions")
           .select("id, qcontent, qtype, qcorrectanswer, qselection, qpoints")
@@ -147,9 +177,19 @@ const TrialPage = () => {
           setLoading(false);
           return;
         }
-        // Shuffle once and store the result.
-        const shuffledQuestions = [...questionsRes].sort(() => Math.random() - 0.5);
-        setQuestions(shuffledQuestions);
+
+        // Check if a question order is saved in localStorage.
+        const savedOrder = localStorage.getItem(questionOrderKey);
+        let finalQuestions: Question[];
+        if (savedOrder) {
+          // Use the saved order.
+          finalQuestions = JSON.parse(savedOrder);
+        } else {
+          // Shuffle questions and then save the order.
+          finalQuestions = [...questionsRes].sort(() => Math.random() - 0.5);
+          localStorage.setItem(questionOrderKey, JSON.stringify(finalQuestions));
+        }
+        setQuestions(finalQuestions);
         setLoading(false);
       } catch (err) {
         setError("An error occurred while fetching data.");
@@ -158,7 +198,29 @@ const TrialPage = () => {
     };
 
     fetchData();
-  }, [router, trial_dataId, trialId]);
+  }, [router, trial_dataId, trialId, questionOrderKey]);
+
+  // Restore user's answers (if any) and current question index from localStorage.
+  useEffect(() => {
+    const savedAnswers = localStorage.getItem(userAnswersKey);
+    if (savedAnswers) {
+      setUserAnswers(JSON.parse(savedAnswers));
+    }
+    const savedIndex = localStorage.getItem(currentIndexKey);
+    if (savedIndex !== null) {
+      setCurrentQuestionIndex(Number(savedIndex));
+    }
+  }, [userAnswersKey, currentIndexKey]);
+
+  // Save user's answers to localStorage when they change.
+  useEffect(() => {
+    localStorage.setItem(userAnswersKey, JSON.stringify(userAnswers));
+  }, [userAnswers, userAnswersKey]);
+
+  // Save current question index to localStorage when it changes.
+  useEffect(() => {
+    localStorage.setItem(currentIndexKey, currentQuestionIndex.toString());
+  }, [currentQuestionIndex, currentIndexKey]);
 
   useEffect(() => {
     if (!trialData || !trialInfo) return;
@@ -218,7 +280,7 @@ const TrialPage = () => {
     if (hasFinished) return;
     setHasFinished(true);
     setIsSubmitting(true);
-  
+
     let totalPoints = 0;
     // Loop through each question, calculate points, and insert a q_data record.
     for (const question of questions) {
@@ -255,19 +317,19 @@ const TrialPage = () => {
         },
       ]);
     }
-  
+
     const finalRemaining = overrideRemaining !== undefined ? overrideRemaining : remainingTime;
-  
+
     // Compute stars.
     const star1 = true;
     const star2 = star1 && (allScore > 0 ? totalPoints / allScore >= 0.7 : false);
     const star3 = star2 && (allocatedTime > 0 ? remainingTime / allocatedTime >= 0.35 : false);
     const starCount = 1 + (star2 ? 1 : 0) + (star3 ? 1 : 0);
-  
+
     // Calculate new evaluation score using 70% weight for score and 30% for remaining time.
     const rawEval = (((totalPoints / allScore) * 0.7) + ((remainingTime / allocatedTime) * 0.3)) * 100;
     const newEval = Number(rawEval.toFixed(1));
-  
+
     // Update current trial_data record.
     await supabase
       .from("trial_data")
@@ -279,20 +341,20 @@ const TrialPage = () => {
         eval_score: newEval.toString()
       })
       .eq("id", trial_dataId);
-  
+
     // --- EXP Calculation (unchanged) ---
     const expGain = trialInfo.exp_gain ? Number(trialInfo.exp_gain) : 0;
     const gainedExpStars = (starCount / 3) * expGain;
-  
+
     const { count: attemptCount } = await supabase
       .from("trial_data")
       .select("id", { count: "exact", head: true })
       .eq("trial_id", trialId)
       .eq("user_id", userId);
-  
+
     const bonusExp = attemptCount === 1 && trialInfo.first_exp ? Number(trialInfo.first_exp) : 0;
     const totalExpGained = gainedExpStars + bonusExp;
-  
+
     const { data: userRecord } = await supabase
       .from("users")
       .select("exp")
@@ -304,9 +366,9 @@ const TrialPage = () => {
       .from("users")
       .update({ exp: newExp })
       .eq("id", userId);
-  
+
     setGainedExp(totalExpGained);
-  
+
     let localAttemptMessage = "";
     const { data: allAttempts } = await supabase
       .from("trial_data")
@@ -348,24 +410,93 @@ const TrialPage = () => {
     } else {
       localAttemptMessage = "Good job completing the trial";
     }
-  
+
     setFinalScore(totalPoints);
     setAttemptMessage(localAttemptMessage);
+
+    // ---- Hidden Achievement Check ----
+    // First, if an hd_achv_id is set, check if the user already has this achievement.
+    if (trialInfo.hd_achv_id) {
+      const { data: existingAcv } = await supabase
+        .from("user_acv")
+        .select("id")
+        .eq("user_id", userId)
+        .eq("achv_id", trialInfo.hd_achv_id)
+        .maybeSingle();
+      if (existingAcv) {
+        // User already has the hidden achievement.
+        const { data: achvData, error: achvError } = await supabase
+          .from("achievements")
+          .select("name, description, image")
+          .eq("id", trialInfo.hd_achv_id)
+          .single();
+        if (achvError || !achvData) {
+          console.error("Error fetching achievement details:", achvError);
+        } else {
+          setHiddenAchvAchieved(true);
+          setHiddenAchvDetails(achvData);
+        }
+      } else if (trialInfo.hd_condition) {
+        // Otherwise, evaluate the hidden achievement condition.
+        let hiddenAchieved = false;
+        try {
+          // Define evaluation variables.
+          const score = totalPoints;
+          const timeRemaining = remainingTime;
+          const timeAllocated = allocatedTime;
+          const allScoreVal = trialInfo.allscore;
+          hiddenAchieved = eval(trialInfo.hd_condition);
+        } catch (e) {
+          console.error("Error evaluating hidden achievement condition:", e);
+        }
+        if (hiddenAchieved) {
+          // Use the helper function to get the correct Philippine time.
+          const philippineTime = getManilaTimeISO();
+          const { error: insertError } = await supabase
+            .from("user_acv")
+            .insert([{ user_id: userId, achv_id: trialInfo.hd_achv_id, time_date: philippineTime }]);
+          if (insertError) {
+            console.error("Error inserting user achievement:", insertError);
+          }
+          const { data: achvData, error: achvError } = await supabase
+            .from("achievements")
+            .select("name, description, image")
+            .eq("id", trialInfo.hd_achv_id)
+            .single();
+          if (achvError || !achvData) {
+            console.error("Error fetching achievement details:", achvError);
+          } else {
+            setHiddenAchvAchieved(true);
+            setHiddenAchvDetails(achvData);
+          }
+        } else {
+          setHiddenAchvAchieved(false);
+          setHiddenAchvDetails(null);
+        }
+      }
+    }
+    // -----------------------------------
+
+    // Clear the locally stored trial data after finishing.
+    localStorage.removeItem(questionOrderKey);
+    localStorage.removeItem(userAnswersKey);
+    localStorage.removeItem(currentIndexKey);
+
     setOpenDialog(true);
     setIsSubmitting(false);
-  
+
     triggerAction();
-  };  
+  };
 
   const triggerAction = () => {
-    const event = new Event('childAction');
+    const event = new Event("childAction");
     document.dispatchEvent(event);
   };
 
   const handleDialogClose = () => {
     setOpenDialog(false);
     router.back();
-  };  
+  };
 
   if (loading) {
     return (
@@ -392,19 +523,36 @@ const TrialPage = () => {
 
   return (
     <Container maxWidth="md" sx={{ mt: 4, p: { xs: 2, md: 4 } }}>
+      {/* Header Section */}
       <Box sx={{ mb: 3, textAlign: "center" }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: "bold" }}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: "bold", mb: 1 }}>
           {trialInfo?.trial_title || "Trial"}
         </Typography>
-        <Typography variant="h6" sx={{ mt: 1, color: "primary.main" }}>
+        <Typography variant="h6" sx={{ color: "primary.main" }}>
           Remaining Time: {formatTime(remainingTime)}
         </Typography>
       </Box>
 
+      {/* Question Display */}
       <Box sx={{ mb: 4 }}>
         {currentQuestion && (
-          <Slide in={true} direction={slideDirection} timeout={300} mountOnEnter unmountOnExit key={currentQuestion.id}>
-            <Paper elevation={3} sx={{ p: { xs: 2, md: 3 } }}>
+          <Slide
+            in={true}
+            direction={slideDirection}
+            timeout={300}
+            mountOnEnter
+            unmountOnExit
+            key={currentQuestion.id}
+          >
+            <Paper
+              elevation={3}
+              sx={{
+                p: { xs: 2, md: 3 },
+                borderRadius: "12px",
+                boxShadow: "0 4px 16px rgba(0, 0, 0, 0.15)",
+                backgroundColor: "white",
+              }}
+            >
               <Box sx={{ mb: 2 }}>
                 <Typography variant="h6" sx={{ fontWeight: "medium" }}>
                   Question {currentQuestionIndex + 1} of {questions.length}
@@ -414,7 +562,7 @@ const TrialPage = () => {
                 <Typography
                   variant="body1"
                   dangerouslySetInnerHTML={{ __html: currentQuestion.qcontent }}
-                  sx={{ fontSize: { xs: "1rem", md: "1.25rem" } }}
+                  sx={{ fontSize: { xs: "1rem", md: "1.25rem" }, lineHeight: 1.6 }}
                 />
               </Box>
               {currentQuestion.qtype === "Single" && (
@@ -442,7 +590,8 @@ const TrialPage = () => {
                       ? (userAnswers[currentQuestion.id] as string[])
                       : [];
                     const maxSelections = currentQuestion.qcorrectanswer.length;
-                    const disableCheckbox = !selected.includes(option) && selected.length >= maxSelections;
+                    const disableCheckbox =
+                      !selected.includes(option) && selected.length >= maxSelections;
                     return (
                       <FormControlLabel
                         key={option}
@@ -484,6 +633,7 @@ const TrialPage = () => {
         )}
       </Box>
 
+      {/* Navigation Buttons */}
       <Grid container spacing={2} sx={{ mb: 3 }}>
         <Grid item xs={6}>
           <Button
@@ -491,6 +641,12 @@ const TrialPage = () => {
             fullWidth
             onClick={handlePrev}
             disabled={isSubmitting || currentQuestionIndex === 0}
+            sx={{
+              borderRadius: "8px",
+              boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
+              textTransform: "none",
+              "&:hover": { boxShadow: "0px 4px 8px rgba(0,0,0,0.3)" },
+            }}
           >
             Prev
           </Button>
@@ -501,45 +657,140 @@ const TrialPage = () => {
             fullWidth
             onClick={handleNext}
             disabled={isSubmitting || currentQuestionIndex === questions.length - 1}
+            sx={{
+              borderRadius: "8px",
+              boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
+              textTransform: "none",
+              "&:hover": { boxShadow: "0px 4px 8px rgba(0,0,0,0.3)" },
+            }}
           >
             Next
           </Button>
         </Grid>
       </Grid>
 
+      {/* Finish Button */}
       <Box sx={{ textAlign: "center", mb: 3 }}>
         <Button
           variant="contained"
           color="primary"
           onClick={() => finishSubmission()}
           disabled={isSubmitting}
-          sx={{ px: 4, py: 1.5, fontSize: "1rem" }}
+          sx={{
+            px: 4,
+            py: 1.5,
+            fontSize: "1rem",
+            borderRadius: "8px",
+            boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
+            textTransform: "none",
+            "&:hover": { boxShadow: "0px 4px 8px rgba(0,0,0,0.3)" },
+          }}
         >
           Finish
         </Button>
       </Box>
 
       {/* Finish Dialog */}
-      <Dialog open={openDialog} onClose={handleDialogClose} fullWidth maxWidth="sm">
-        <DialogTitle sx={{ textAlign: "center", fontWeight: "bold" }}>
-          Trial Done!
+      <Dialog
+        open={openDialog}
+        onClose={handleDialogClose}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          sx: {
+            borderRadius: "16px",
+            boxShadow: "0px 4px 20px rgba(0,0,0,0.1)",
+            p: 0,
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            textAlign: "center",
+            fontWeight: "bold",
+            backgroundColor: "primary.main",
+            color: "white",
+            py: 2,
+            borderTopLeftRadius: "16px",
+            borderTopRightRadius: "16px",
+          }}
+        >
+          Trial Completed!
         </DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ p: 3 }}>
           <Box sx={{ textAlign: "center", mb: 2 }}>
-            <Typography variant="h6">{trialInfo?.trial_title}</Typography>
-            <Typography variant="subtitle1">
+            <Typography variant="h6" sx={{ mt: 2 }}>
+              {trialInfo?.trial_title}
+            </Typography>
+            <Typography variant="subtitle1" sx={{ mt: 1 }}>
               Score: {finalScore} / {allScore}
             </Typography>
             <Typography variant="subtitle1">
               Remaining Time: {formatTime(remainingTime)} ({remainingTime} seconds)
             </Typography>
           </Box>
-          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 1 }}>
-            {star1Display ? <StarIcon color="warning" fontSize="large" /> : <StarBorderIcon fontSize="large" />}
-            {star2Display ? <StarIcon color="warning" fontSize="large" /> : <StarBorderIcon fontSize="large" />}
-            {star3Display ? <StarIcon color="warning" fontSize="large" /> : <StarBorderIcon fontSize="large" />}
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              gap: 1,
+              mb: 2,
+            }}
+          >
+            {star1Display ? (
+              <StarIcon color="warning" fontSize="large" />
+            ) : (
+              <StarBorderIcon fontSize="large" />
+            )}
+            {star2Display ? (
+              <StarIcon color="warning" fontSize="large" />
+            ) : (
+              <StarBorderIcon fontSize="large" />
+            )}
+            {star3Display ? (
+              <StarIcon color="warning" fontSize="large" />
+            ) : (
+              <StarBorderIcon fontSize="large" />
+            )}
           </Box>
-          {/* Display the gained EXP info */}
+          {/* Hidden Achievement Section */}
+          <Box sx={{ mt: 2, textAlign: "center" }}>
+            {hiddenAchvAchieved && hiddenAchvDetails ? (
+              <Box sx={{ textAlign: "center", mb: 2 }}>
+                <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
+                  Hidden Achievement Earned
+                </Typography>
+                <Box
+                  component="img"
+                  src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/achivements/${hiddenAchvDetails.image}`}
+                  alt={hiddenAchvDetails.name}
+                  sx={{ maxWidth: "100px", mb: 1, borderRadius: "8px" }}
+                />
+                <Typography variant="h6">{hiddenAchvDetails.name}</Typography>
+                <Typography variant="body2">
+                  Condition: {hiddenAchvDetails.description}
+                </Typography>
+              </Box>
+            ) : (
+              <Box
+                sx={{
+                  mt: 2,
+                  textAlign: "center",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 1,
+                }}
+              >
+                <HelpTwoToneIcon color="disabled" />
+                <Typography variant="body1" color="text.secondary">
+                  Secret Achievement Remains Locked
+                </Typography>
+              </Box>
+            )}
+          </Box>
+          {/* Gained EXP Section */}
           <Box sx={{ mt: 2, textAlign: "center" }}>
             <Typography variant="h6" sx={{ color: "green" }}>
               Gained Exp: +{gainedExp}
@@ -552,20 +803,25 @@ const TrialPage = () => {
               </Typography>
             </Box>
           )}
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2">
+          <Box sx={{ mt: 3 }}>
+            <Typography variant="body2" align="center">
               * First Star: Awarded for completing the trial.
             </Typography>
-            <Typography variant="body2">
+            <Typography variant="body2" align="center">
               * Second Star: Awarded if your score is at least 70% of the total score and you have earned the first star.
             </Typography>
-            <Typography variant="body2">
+            <Typography variant="body2" align="center">
               * Third Star: Awarded if you finish with at least 35% of the time remaining and you have earned the second star.
             </Typography>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ justifyContent: "center" }}>
-          <Button onClick={handleDialogClose} variant="contained">
+        <DialogActions sx={{ justifyContent: "center", pb: 2 }}>
+          <Button
+            onClick={handleDialogClose}
+            variant="contained"
+            color="primary"
+            sx={{ px: 4, py: 1 }}
+          >
             Close
           </Button>
         </DialogActions>

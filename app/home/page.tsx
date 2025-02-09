@@ -2,12 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js'; 
-import { Container, Box, Paper, Typography, useMediaQuery } from '@mui/material';
+import { createClient } from '@supabase/supabase-js';
+import {
+  Container,
+  Box,
+  Paper,
+  Typography,
+  useMediaQuery,
+  CircularProgress,
+} from '@mui/material';
 import { keyframes } from '@emotion/react';
-import Loading from './loading';
-import {grey, blue } from '@mui/material/colors';
-import CircularProgress from '@mui/material/CircularProgress';
+import { grey, blue } from '@mui/material/colors';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
@@ -19,21 +24,29 @@ interface Subject {
 }
 
 const clickAnimation = keyframes`
+  0% { transform: scale(1.05); }
+  100% { transform: scale(0.95); }
+`;
+
+const fadeIn = keyframes`
   from {
-    transform: scale(1.05);
+    opacity: 0;
+    transform: translateY(20px);
   }
   to {
-    transform: scale(0.95);
+    opacity: 1;
+    transform: translateY(0);
   }
 `;
 
 export default function HomePage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false); // New state for disabling
+  const [isProcessing, setIsProcessing] = useState(false);
   const router = useRouter();
   const isMobile = useMediaQuery('(max-width:600px)');
   const [loading, setLoading] = useState(true);
 
+  // Check authentication on mount
   useEffect(() => {
     const checkAuth = async () => {
       try {
@@ -55,40 +68,38 @@ export default function HomePage() {
     checkAuth();
   }, [router]);
 
+  // Fetch subjects from Supabase
   useEffect(() => {
     const fetchSubjects = async () => {
       try {
-        const response = await supabase
-          .from('subjects')
-          .select('id, sub');
-  
+        const response = await supabase.from('subjects').select('id, sub');
         const { data, error } = response;
-  
+
         if (error) {
           console.error('Supabase error:', error);
           return;
         }
-  
+
         const validData = Array.isArray(data)
           ? data.filter((item): item is Subject =>
-              item && typeof item === 'object' &&
+              item &&
+              typeof item === 'object' &&
               'id' in item &&
               'sub' in item &&
               typeof item.id === 'string' &&
               typeof item.sub === 'string'
             )
           : [];
-  
+
         setSubjects(validData);
       } catch (error) {
         console.error('Failed to fetch subjects:', error);
-      } finally {
       }
     };
     fetchSubjects();
   }, []);
-  
 
+  // Navigate to subject page on click
   const handleSubjectClick = async (id: string) => {
     if (isProcessing) return;
     setIsProcessing(true);
@@ -96,22 +107,16 @@ export default function HomePage() {
     setIsProcessing(false);
   };
 
-
   if (loading) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        height="80vh"
-      >
+      <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
         <CircularProgress />
       </Box>
     );
   }
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Introduction Section */}
       <Box
         display="flex"
@@ -119,21 +124,21 @@ export default function HomePage() {
         alignItems="center"
         justifyContent="center"
         textAlign="center"
-        padding="2rem"
-        marginBottom="2rem"
+        p={4}
+        mb={4}
         sx={{
-          backgroundColor: blue[50],
+          background: `linear-gradient(135deg, ${blue[50]} 0%, ${blue[100]} 100%)`,
           borderRadius: '12px',
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-          marginTop: "1rem",
+          boxShadow: '0 6px 12px rgba(0, 0, 0, 0.1)',
+          animation: `${fadeIn} 0.8s ease-out forwards`,
         }}
       >
         <Typography
           variant="h4"
           sx={{
-            fontWeight: 600,
-            color: blue[700],
-            marginBottom: '0.5rem',
+            fontWeight: 700,
+            color: blue[900],
+            mb: 1,
           }}
         >
           Welcome to Ailice
@@ -143,11 +148,11 @@ export default function HomePage() {
           sx={{
             fontSize: '1.1rem',
             color: grey[800],
-            maxWidth: '600px',
+            maxWidth: 600,
           }}
         >
-          Ailice is your personalized and adaptive online learning assistant, powered by AI. 
-          Explore a wide range of subjects, interact with the AI chatbot, and unlock a tailored learning experience designed just for you.
+          Ailice is a platform where you can learn, challenge yourself, and achieve your goals.
+          Explore our subjects and interact with our AI chatbot for guidance along the way.
         </Typography>
       </Box>
 
@@ -157,19 +162,20 @@ export default function HomePage() {
         flexDirection="column"
         alignItems="center"
         justifyContent="center"
-        padding="2rem"
+        p={4}
         sx={{
-          backgroundColor: grey[300],
+          backgroundColor: grey[200],
           borderRadius: '12px',
-          boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
+          boxShadow: '0 6px 12px rgba(0, 0, 0, 0.1)',
+          animation: `${fadeIn} 0.8s ease-out forwards`,
         }}
       >
         <Typography
           variant="h5"
           sx={{
-            fontWeight: 500,
-            color: grey[800],
-            marginBottom: '1.5rem',
+            fontWeight: 600,
+            color: grey[900],
+            mb: 3,
           }}
         >
           Available Subjects
@@ -181,7 +187,7 @@ export default function HomePage() {
           flexDirection="row"
           flexWrap="wrap"
           justifyContent="center"
-          gap={2}
+          gap={3}
           sx={{
             width: '100%',
           }}
@@ -192,24 +198,25 @@ export default function HomePage() {
                 key={subject.id}
                 elevation={4}
                 sx={{
-                  padding: '2rem',
+                  p: 4,
                   textAlign: 'center',
                   cursor: isProcessing ? 'not-allowed' : 'pointer',
                   flex: {
-                    xs: '0 1 calc(100% - 1rem)', // Full width on extra small screens
-                    sm: '0 1 calc(50% - 1rem)', // Half width on small screens
-                    md: '0 1 calc(33% - 1rem)', // Third width on medium screens and above
+                    xs: '0 1 calc(100% - 1rem)',
+                    sm: '0 1 calc(45% - 1rem)',
+                    md: '0 1 calc(30% - 1rem)',
                   },
                   backgroundColor: grey[100],
                   borderRadius: '12px',
                   boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
                   transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                  animation: `${fadeIn} 0.8s ease-out forwards`,
                   '&:hover': {
                     transform: 'translateY(-5px)',
-                    boxShadow: '0 6px 12px rgba(0, 0, 0, 0.2)',
+                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)',
                   },
                   '&:active': {
-                    transform: 'translateY(0)',
+                    animation: `${clickAnimation} 0.2s ease`,
                   },
                   opacity: isProcessing ? 0.5 : 1,
                 }}
@@ -218,9 +225,9 @@ export default function HomePage() {
                 <Typography
                   variant="h6"
                   sx={{
-                    fontSize: '1rem',
+                    fontSize: '1.1rem',
                     color: grey[800],
-                    fontWeight: 500,
+                    fontWeight: 600,
                   }}
                 >
                   {subject.sub}
@@ -233,7 +240,7 @@ export default function HomePage() {
               sx={{
                 color: grey[600],
                 textAlign: 'center',
-                marginTop: '2rem',
+                mt: 4,
               }}
             >
               No subjects available

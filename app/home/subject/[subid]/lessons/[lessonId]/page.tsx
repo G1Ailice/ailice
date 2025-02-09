@@ -166,15 +166,35 @@ export default function LessonDetailsTabs() {
   }
 
   return (
-    <Container maxWidth="lg">
-      <Box marginTop="1rem">
-        <Paper elevation={3} style={{ padding: '1rem' }}>
+    <Container
+      maxWidth="lg"
+      sx={{
+        py: 1,
+        backgroundColor: "background.default",
+        minHeight: "100vh",
+      }}
+    >
+      <Box sx={{ mt: 4 }}>
+        <Paper
+          elevation={6}
+          sx={{
+            p: 3,
+            borderRadius: 3,
+            backgroundColor: "white",
+            boxShadow: "0 8px 16px rgba(0, 0, 0, 0.1)",
+          }}
+        >
           <Tabs
             value={currentTab}
             onChange={handleTabChange}
             indicatorColor="primary"
             textColor="primary"
             variant="fullWidth"
+            sx={{
+              borderBottom: 1,
+              borderColor: "divider",
+              mb: 3,
+            }}
           >
             <Tab label="Lesson" />
             <Tab label="Practice" />
@@ -184,44 +204,42 @@ export default function LessonDetailsTabs() {
             <Box
               mt={2}
               sx={{
-                overflowY: 'auto',
-                maxHeight: '67vh',
-                padding: '1rem',
-                textAlign: 'left',
-                fontSize: { xs: '0.875rem', sm: '1rem' },
-                lineHeight: { xs: '1.4', sm: '1.6' },
-                '&::-webkit-scrollbar': {
-                  width: '8px',
+                overflowY: "auto",
+                maxHeight: "60vh",
+                p: 2,
+                textAlign: "left",
+                fontSize: { xs: "0.875rem", sm: "1rem" },
+                lineHeight: { xs: 1.4, sm: 1.6 },
+                "&::-webkit-scrollbar": { width: "8px" },
+                "&::-webkit-scrollbar-thumb": {
+                  backgroundColor: "primary.main",
+                  borderRadius: "4px",
+                  border: "2px solid #fff",
                 },
-                '&::-webkit-scrollbar-thumb': {
-                  backgroundColor: theme.palette.primary.main,
-                  borderRadius: '4px',
-                  border: '2px solid #fff',
+                "&::-webkit-scrollbar-track": {
+                  backgroundColor: "grey.300",
+                  borderRadius: "4px",
                 },
-                '&::-webkit-scrollbar-track': {
-                  backgroundColor: theme.palette.grey[500],
-                  borderRadius: '4px',
+                "@media (max-width:600px)": {
+                  p: 1,
+                  fontSize: "0.75rem",
                 },
-                '@media (max-width:600px)': {
-                  padding: '0.5rem',
-                  fontSize: '0.75rem',
+                "& table": {
+                  width: "100%",
+                  borderCollapse: "collapse",
                 },
-                '& table': {
-                  width: '100%',
-                  borderCollapse: 'collapse',
-                  fontSize: { xs: '0.75rem', sm: '1rem' },
+                "& th, & td": {
+                  border: "1px solid #ddd",
+                  p: 1,
+                  textAlign: "left",
                 },
-                '& th, & td': {
-                  border: '1px solid #ddd',
-                  padding: '8px',
-                  textAlign: 'left',
-                  fontSize: { xs: '0.75rem', sm: '1rem' },
-                },
-                '& th': {
-                  backgroundColor: theme.palette.background.default,
+                "& th": {
+                  backgroundColor: "grey.100",
                 },
               }}
-              dangerouslySetInnerHTML={{ __html: lessonContent || '<p>Lesson content not found.</p>' }}
+              dangerouslySetInnerHTML={{
+                __html: lessonContent || "<p>Lesson content not found.</p>",
+              }}
             />
           )}
           {currentTab === 1 && (
@@ -233,9 +251,7 @@ export default function LessonDetailsTabs() {
                 <Box
                   mt={2}
                   id="game-container"
-                  dangerouslySetInnerHTML={{
-                    __html: gameContent,
-                  }}
+                  dangerouslySetInnerHTML={{ __html: gameContent }}
                 />
               ) : (
                 <Skeleton animation="wave" variant="rectangular" width="100%" height={100} />
@@ -245,5 +261,6 @@ export default function LessonDetailsTabs() {
         </Paper>
       </Box>
     </Container>
+
   );
 }

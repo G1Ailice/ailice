@@ -18,12 +18,14 @@ import {
   IconButton,
   Avatar,
   Slide,
+  Tooltip,
 } from "@mui/material";
 import { TransitionProps } from "@mui/material/transitions";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import StarIcon from "@mui/icons-material/Star";
 import EmojiEventsRoundedIcon from "@mui/icons-material/EmojiEventsRounded";
+import HelpTwoToneIcon from "@mui/icons-material/HelpTwoTone";
 import { useTheme } from "@mui/material/styles";
 
 // Create a Transition component using Slide
@@ -85,6 +87,14 @@ const LessonsPage = () => {
   const [rankingData, setRankingData] = useState<any[]>([]);
 
   const [unlockedLessons, setUnlockedLessons] = useState<Record<string, boolean>>({});
+
+  // New states for hidden achievement details and unlocked status.
+  const [hiddenAchvDetails, setHiddenAchvDetails] = useState<{
+    id: string;
+    name: string;
+    image: string;
+  } | null>(null);
+  const [hiddenAchvUnlocked, setHiddenAchvUnlocked] = useState<boolean>(false);
 
   // 1. Fetch current user
   useEffect(() => {
@@ -423,6 +433,38 @@ const LessonsPage = () => {
     setAttempted(false);
   };
 
+  // --- Fetch hidden achievement details as soon as selectedTrial and currentUser are available ---
+  useEffect(() => {
+    const fetchHiddenAchievementDetails = async () => {
+      if (selectedTrial && currentUser && selectedTrial.hd_achv_id) {
+        // Fetch achievement details from the achievements table.
+        const { data: achvData, error: achvError } = await supabase
+          .from("achievements")
+          .select("id, name, image")
+          .eq("id", selectedTrial.hd_achv_id)
+          .single();
+        if (achvError) {
+          console.error("Error fetching hidden achievement details:", achvError);
+          return;
+        }
+        setHiddenAchvDetails(achvData);
+
+        // Check if the current user has unlocked this achievement in users_acv.
+        const { data: userAcvData, error: userAcvError } = await supabase
+          .from("user_acv")
+          .select("id")
+          .eq("user_id", currentUser.id)
+          .eq("achv_id", selectedTrial.hd_achv_id)
+          .maybeSingle();
+        if (userAcvError) {
+          console.error("Error checking user achievement:", userAcvError);
+        }
+        setHiddenAchvUnlocked(!!userAcvData);
+      }
+    };
+    fetchHiddenAchievementDetails();
+  }, [selectedTrial, currentUser]);
+
   // 8. Instantly compute and display star rating, trial score, and time concluded
   //     using the already fetched finishedTrials state.
   useEffect(() => {
@@ -523,8 +565,19 @@ const LessonsPage = () => {
   return (
     <Container maxWidth="lg">
       <Box marginTop="1rem">
-        <Paper elevation={3} sx={{ padding: "1rem" }}>
-          <Typography variant="h4" gutterBottom>
+        <Paper
+          elevation={4}
+          sx={{
+            padding: "1.5rem",
+            borderRadius: "16px",
+            backgroundColor: "background.paper",
+          }}
+        >
+          <Typography
+            variant="h4"
+            gutterBottom
+            sx={{ fontWeight: "bold", textAlign: "center" }}
+          >
             {subjectName}
           </Typography>
           {Object.keys(groupedLessons).length > 0 ? (
@@ -532,7 +585,10 @@ const LessonsPage = () => {
               sx={{
                 overflowY: "auto",
                 maxHeight: "67vh",
-                padding: "1rem",
+                p: 2,
+                backgroundColor: "grey.100",
+                borderRadius: "8px",
+                boxShadow: "inset 0 2px 4px rgba(0,0,0,0.1)",
                 "&::-webkit-scrollbar": { width: "8px" },
                 "&::-webkit-scrollbar-thumb": {
                   backgroundColor: "primary.main",
@@ -540,26 +596,38 @@ const LessonsPage = () => {
                   border: "2px solid #fff",
                 },
                 "&::-webkit-scrollbar-track": {
-                  backgroundColor: "grey.500",
+                  backgroundColor: "grey.300",
                   borderRadius: "4px",
                 },
               }}
             >
               {Object.values(groupedLessons).map(({ main, sub }, index) => (
-                <Box key={index}>
+                <Box key={index} sx={{ mb: 2 }}>
                   <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
                     {main && (
                       <Button
-                        disabled={isProcessing || (main.status === "Locked" && !unlockedLessons[main.id])}
+                        disabled={
+                          isProcessing ||
+                          (main.status === "Locked" && !unlockedLessons[main.id])
+                        }
                         sx={{
                           p: 1.5,
-                          backgroundColor: main.status === "Locked" && !unlockedLessons[main.id] ? "#ccc" : "primary.main",
+                          backgroundColor:
+                            main.status === "Locked" && !unlockedLessons[main.id]
+                              ? "#ccc"
+                              : "primary.main",
                           color: "primary.contrastText",
                           textTransform: "none",
-                          transition: "transform 0.3s",
+                          borderRadius: "8px",
+                          boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
+                          transition: "transform 0.3s, box-shadow 0.3s",
                           "&:hover": {
-                            transform: "scale(1.01)",
-                            backgroundColor: main.status === "Locked" && !unlockedLessons[main.id] ? "#ccc" : "primary.dark",
+                            transform: "scale(1.02)",
+                            boxShadow: "0px 4px 8px rgba(0,0,0,0.3)",
+                            backgroundColor:
+                              main.status === "Locked" && !unlockedLessons[main.id]
+                                ? "#ccc"
+                                : "primary.dark",
                           },
                         }}
                         onClick={() => handleLessonClick(main)}
@@ -573,15 +641,29 @@ const LessonsPage = () => {
                     {sub.map((subLesson) => (
                       <Button
                         key={subLesson.id}
-                        disabled={isProcessing || (subLesson.status === "Locked" && !unlockedLessons[subLesson.id])}
+                        disabled={
+                          isProcessing ||
+                          (subLesson.status === "Locked" &&
+                            !unlockedLessons[subLesson.id])
+                        }
                         sx={{
                           p: 1,
-                          backgroundColor: subLesson.status === "Locked" && !unlockedLessons[subLesson.id] ? "#ccc" : "#0D47A1",
+                          backgroundColor:
+                            subLesson.status === "Locked" &&
+                            !unlockedLessons[subLesson.id]
+                              ? "#ccc"
+                              : "#0D47A1",
                           color: "white",
                           textTransform: "none",
                           fontSize: "0.9rem",
+                          borderRadius: "8px",
+                          boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
                           "&:hover": {
-                            backgroundColor: subLesson.status === "Locked" && !unlockedLessons[subLesson.id] ? "#ccc" : "#08306b",
+                            backgroundColor:
+                              subLesson.status === "Locked" &&
+                              !unlockedLessons[subLesson.id]
+                                ? "#ccc"
+                                : "#08306b",
                           },
                         }}
                         onClick={() => handleLessonClick(subLesson)}
@@ -607,38 +689,116 @@ const LessonsPage = () => {
         maxWidth="sm"
         fullWidth
         TransitionComponent={Transition}
+        PaperProps={{
+          sx: {
+            borderRadius: "16px",
+            boxShadow: "0px 4px 20px rgba(0,0,0,0.2)",
+            overflow: "hidden",
+          },
+        }}
       >
         <DialogTitle
           sx={{
             backgroundColor: "primary.main",
-            color: "primary.contrastText",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
+            color: "white",
+            p: 2,
+            textAlign: "center",
+            fontWeight: "bold",
+            position: "relative",
           }}
         >
-          <Typography variant="h6" component="span">
-            {selectedLesson?.lesson_title}
-          </Typography>
-          {/* Ranking Icon Button */}
+          {selectedLesson?.lesson_title}
+          {/* Ranking Icon Button positioned absolutely in the top-right */}
           {selectedTrial && (
-            <IconButton onClick={fetchRankingData} sx={{ color: "white" }}>
+            <IconButton
+              onClick={fetchRankingData}
+              sx={{
+                color: "white",
+                position: "absolute",
+                right: 8,
+                top: 8,
+              }}
+            >
               <EmojiEventsRoundedIcon />
             </IconButton>
           )}
         </DialogTitle>
-        <DialogContent dividers sx={{ padding: "1.5rem" }}>
-          <Typography variant="body1" sx={{ marginBottom: "1rem", color: "text.secondary" }}>
+        <DialogContent dividers sx={{ p: 3 }}>
+          {/* Lesson Description */}
+          <Typography variant="body1" sx={{ mb: 2, color: "text.secondary" }}>
             {selectedLesson?.description || "No description available."}
           </Typography>
+          {/* Combined Hidden Achievement & Trial Rating */}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: isMobile ? "column" : "row",
+              justifyContent: "space-around",
+              alignItems: "center",
+              my: 2,
+            }}
+          >
+            {/* Hidden Achievement Section */}
+            {selectedTrial && selectedTrial.hd_achv_id && hiddenAchvDetails && (
+              <Box sx={{ textAlign: "center", mb: isMobile ? 2 : 0 }}>
+                {hiddenAchvUnlocked ? (
+                  <>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                      Hidden Achievement Unlocked
+                    </Typography>
+                    <Tooltip title={hiddenAchvDetails.name}>
+                      <Box
+                        component="img"
+                        src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/achivements/${hiddenAchvDetails.image}`}
+                        alt={hiddenAchvDetails.name}
+                        sx={{ width: 80, height: 80, borderRadius: 2, mx: "auto" }}
+                      />
+                    </Tooltip>
+                  </>
+                ) : (
+                  <Tooltip title="Hidden Achievement Locked">
+                    <HelpTwoToneIcon color="disabled" sx={{ fontSize: 80 }} />
+                  </Tooltip>
+                )}
+              </Box>
+            )}
+            {/* Trial Attempt Rating Section */}
+            <Box sx={{ textAlign: "center" }}>
+              <Typography variant="caption" sx={{ mb: 0.5 }}>
+                Trial Attempt Rating
+              </Typography>
+              {attempted ? (
+                <Box display="flex" justifyContent="center">
+                  {[0, 1, 2].map((i) => (
+                    <StarIcon
+                      key={i}
+                      sx={{ color: i < starRating ? "gold" : "gray", mx: 1 }}
+                    />
+                  ))}
+                </Box>
+              ) : (
+                <Typography variant="caption" sx={{ mb: 0.5 }}>
+                  Not Yet Attempted
+                </Typography>
+              )}
+              {selectedTrial && attempted && (
+                <Box mt={0.5} textAlign="center">
+                  <Typography sx={{ fontSize: isMobile ? "0.6rem" : "0.75rem" }}>
+                    Score: {trialScore}/{selectedTrial.allscore}
+                  </Typography>
+                  <Typography sx={{ fontSize: isMobile ? "0.6rem" : "0.75rem" }}>
+                    Remaining Time: {formatTime(timeConcluded)}/{formatTime(selectedTrial.time)}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          </Box>
         </DialogContent>
-
         <DialogActions
           sx={{
             justifyContent: "space-between",
             alignItems: "center",
-            paddingBottom: "1rem",
-            paddingX: "1.5rem",
+            p: 2,
           }}
         >
           {/* Left: Close button */}
@@ -646,36 +806,8 @@ const LessonsPage = () => {
             Close
           </Button>
 
-          {/* Center: Label, Star rating display (or "Not Yet Attempted"), and Score/Remaining Time info */}
-          <Box display="flex" flexDirection="column" alignItems="center">
-            <Typography variant="caption" sx={{ mb: 0.5 }}>
-              Trial Attempt Rating
-            </Typography>
-            {attempted ? (
-              <Box display="flex" justifyContent="center">
-                {[0, 1, 2].map((i) => (
-                  <StarIcon key={i} sx={{ color: i < starRating ? "gold" : "gray", mx: 1 }} />
-                ))}
-              </Box>
-            ) : (
-              <Typography variant="caption" sx={{ mb: 0.5 }}>
-                Not Yet Attempted
-              </Typography>
-            )}
-            {selectedTrial && attempted && (
-              <Box mt={0.5} textAlign="center">
-                <Typography sx={{ fontSize: isMobile ? "0.6rem" : "0.75rem" }}>
-                  Score: {trialScore}/{selectedTrial.allscore}
-                </Typography>
-                <Typography sx={{ fontSize: isMobile ? "0.6rem" : "0.75rem" }}>
-                  Remaining Time: {formatTime(timeConcluded)}/{formatTime(selectedTrial.time)}
-                </Typography>
-              </Box>
-            )}
-          </Box>
-
-          {/* Right: Other action buttons */}
-          <Box display="flex" flexDirection="column" gap={1}>
+          {/* Right: Go to Lesson & Trial Action buttons side by side */}
+          <Box display="flex" flexDirection="row" gap={2}>
             <Button
               disabled={isProcessing}
               sx={{
@@ -683,6 +815,7 @@ const LessonsPage = () => {
                 backgroundColor: "primary.main",
                 color: "primary.contrastText",
                 textTransform: "none",
+                borderRadius: "8px",
                 "&:hover": { backgroundColor: "primary.dark" },
               }}
               onClick={handleLessonRedirect}
@@ -700,11 +833,12 @@ const LessonsPage = () => {
                         backgroundColor: "orange",
                         color: "#fff",
                         textTransform: "none",
+                        borderRadius: "8px",
                         "&:hover": { backgroundColor: "#cc7000" },
                       }}
                       onClick={resumeTrial}
                     >
-                      <PlayArrowIcon sx={{ marginRight: 1 }} />
+                      <PlayArrowIcon sx={{ mr: 1 }} />
                       Resume
                     </Button>
                   ) : (
@@ -715,9 +849,10 @@ const LessonsPage = () => {
                         backgroundColor: "grey",
                         color: "#fff",
                         textTransform: "none",
+                        borderRadius: "8px",
                       }}
                     >
-                      <PlayArrowIcon sx={{ marginRight: 1 }} />
+                      <PlayArrowIcon sx={{ mr: 1 }} />
                       Another trial is in progress
                     </Button>
                   )
@@ -729,11 +864,12 @@ const LessonsPage = () => {
                       backgroundColor: "error.main",
                       color: "error.contrastText",
                       textTransform: "none",
+                      borderRadius: "8px",
                       "&:hover": { backgroundColor: "error.dark" },
                     }}
                     onClick={() => startTrial(selectedTrial.id)}
                   >
-                    <PlayArrowIcon sx={{ marginRight: 1 }} />
+                    <PlayArrowIcon sx={{ mr: 1 }} />
                     Retry
                   </Button>
                 ) : (
@@ -744,11 +880,12 @@ const LessonsPage = () => {
                       backgroundColor: "success.main",
                       color: "success.contrastText",
                       textTransform: "none",
+                      borderRadius: "8px",
                       "&:hover": { backgroundColor: "success.dark" },
                     }}
                     onClick={() => startTrial(selectedTrial.id)}
                   >
-                    <PlayArrowIcon sx={{ marginRight: 1 }} />
+                    <PlayArrowIcon sx={{ mr: 1 }} />
                     {selectedTrial.trial_title}
                   </Button>
                 )}
@@ -760,68 +897,87 @@ const LessonsPage = () => {
 
       {/* Ranking Dialog with Transition */}
       <Dialog
-        open={openRankingDialog}
-        onClose={() => setOpenRankingDialog(false)}
-        maxWidth="sm"
-        fullWidth
-        TransitionComponent={Transition}
-      >
-        <DialogTitle
-          sx={{
-            backgroundColor: "primary.main",
-            color: "primary.contrastText",
-            textAlign: "center",
-          }}
-        >
-          Trial Learner Ranking
-        </DialogTitle>
-        <DialogContent dividers sx={{ padding: "1.5rem" }}>
-          {rankingData && rankingData.length > 0 ? (
-            rankingData.map((record, index) => {
-              const rank = index + 1;
-              const rankColor =
-                rank === 1 ? "gold" :
-                rank === 2 ? "silver" :
-                rank === 3 ? "#cd7f32" : "blue";
-              return (
-                <Box key={record.user_id} display="flex" alignItems="center" gap={2} mb={1}>
-                  {/* Rank number in a circular box */}
-                  <Box
-                    sx={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "50%",
-                      border: `2px solid ${rankColor}`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      color: rankColor,
-                      fontWeight: "bold",
-                    }}
-                  >
-                    {rank}
-                  </Box>
-                  <Avatar
-                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${record.profile_pic}`}
-                    alt={record.username}
-                  />
-                  <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
-                    {record.username}
-                  </Typography>
-                  <Typography variant="subtitle1">Rank Score: {record.eval_score}</Typography>
-                </Box>
-              );
-            })
-          ) : (
-            <Typography variant="body1">No ranking data available.</Typography>
-          )}
-        </DialogContent>
-        <DialogActions sx={{ justifyContent: "center" }}>
-          <Button onClick={() => setOpenRankingDialog(false)} color="primary">
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
+  open={openRankingDialog}
+  onClose={() => setOpenRankingDialog(false)}
+  maxWidth="sm"
+  fullWidth
+  TransitionComponent={Transition}
+  PaperProps={{
+    sx: {
+      borderRadius: "16px",
+      boxShadow: "0px 4px 20px rgba(0,0,0,0.2)",
+      overflow: "hidden",
+    },
+  }}
+>
+  <DialogTitle
+    sx={{
+      backgroundColor: "primary.main",
+      color: "white",
+      p: 2,
+      textAlign: "center",
+      fontWeight: "bold",
+    }}
+  >
+    Trial Learner Ranking
+  </DialogTitle>
+  <DialogContent dividers sx={{ p: 3 }}>
+    {rankingData && rankingData.length > 0 ? (
+      rankingData.map((record, index) => {
+        const rank = index + 1;
+        const rankColor =
+          rank === 1
+            ? "gold"
+            : rank === 2
+            ? "silver"
+            : rank === 3
+            ? "#cd7f32"
+            : "blue";
+        return (
+          <Box key={record.user_id} display="flex" alignItems="center" gap={2} mb={1}>
+            <Box
+              sx={{
+                width: 32,
+                height: 32,
+                borderRadius: "50%",
+                border: `2px solid ${rankColor}`,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: rankColor,
+                fontWeight: "bold",
+              }}
+            >
+              {rank}
+            </Box>
+            {/* The Avatar is now clickable */}
+            <Avatar
+              onClick={() => router.push(`/home/user/${record.user_id}`)}
+              src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${record.profile_pic}`}
+              alt={record.username}
+              sx={{ cursor: "pointer" }}
+            />
+            <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
+              {record.username}
+            </Typography>
+            <Typography variant="subtitle1">
+              Rank Score: {record.eval_score}
+            </Typography>
+          </Box>
+        );
+      })
+    ) : (
+      <Typography variant="body1">No ranking data available.</Typography>
+    )}
+  </DialogContent>
+  <DialogActions sx={{ justifyContent: "center", p: 2 }}>
+    <Button onClick={() => setOpenRankingDialog(false)} color="primary">
+      Close
+    </Button>
+  </DialogActions>
+</Dialog>
+
+
     </Container>
   );
 };
