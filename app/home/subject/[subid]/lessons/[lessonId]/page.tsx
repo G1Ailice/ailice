@@ -169,7 +169,7 @@ export default function LessonDetailsTabs() {
     <Container
       maxWidth="lg"
       sx={{
-        py: 1,
+        py: -2,
         backgroundColor: "background.default",
         minHeight: "100vh",
       }}
