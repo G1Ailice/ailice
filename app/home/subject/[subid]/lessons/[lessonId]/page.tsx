@@ -171,7 +171,7 @@ export default function LessonDetailsTabs() {
       sx={{
         py: -2,
         backgroundColor: "background.default",
-        minHeight: "100vh",
+        minHeight: "70vh",
       }}
     >
       <Box sx={{ mt: 4 }}>
