@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { stripHtml } from 'string-strip-html';
-import { promises as fs } from 'fs';
-import path from 'path';
+import { createClient } from '@supabase/supabase-js';
 
 // Initialize OpenAI client
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+
+// Initialize Supabase client.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // Module-level cache for the reference document and its embedding.
 let cachedVectorContent: string | null = null;
@@ -63,13 +67,22 @@ export async function POST(req: Request) {
     try {
       // Load and cache the reference content and its embedding if not already cached.
       if (!cachedVectorContent || !cachedFileEmbedding) {
-        const vectorFilePath = path.join(
-          process.cwd(),
-          'public',
-          'vector',
-          'content.txt'
-        );
-        cachedVectorContent = await fs.readFile(vectorFilePath, 'utf8');
+        // Fetch data from the Supabase collection (table) "chat_data" and select title and content.
+        const { data, error } = await supabase
+          .from('chat_data')
+          .select('title, content');
+
+        if (error) {
+          console.error("Error fetching chat_data from Supabase:", error);
+          throw error;
+        }
+
+        // Format the data so that each entry appears as:
+        // (title)
+        // (content)
+        cachedVectorContent = data
+          .map((row: { title: string; content: string }) => `(${row.title})\n(${row.content})`)
+          .join("\n");
 
         const fileEmbeddingResponse = await openai.embeddings.create({
           model: "text-embedding-ada-002",
@@ -106,8 +119,8 @@ export async function POST(req: Request) {
 
     // Use the specialized branch with the reference text.
     systemPrompt = `You are a teacher-like assistant named AIlice. Below is the reference text: 
-    Reference: ${vectorContent} 
-    When answering the user's question, do not add, modify, paraphrase, or alter the reference text in any way.`;
+Reference: ${vectorContent} 
+When answering the user's question, do not add, modify, paraphrase, or alter the reference text in any way.Can only help with English subject studies.`;
     conversation = [
       { role: "system", content: systemPrompt },
       { role: "user", content: newMessage },
@@ -115,7 +128,7 @@ export async function POST(req: Request) {
   } else {
     // General inquiry branch.
     systemPrompt =
-      "You are a teacher-like assistant named AIlice. Provide helpful, friendly, and detailed responses.";
+      "You are a teacher-like assistant named AIlice. Provide helpful, friendly, and detailed responses. Can only help with English subject studies.";
     conversation = [
       { role: "system", content: systemPrompt },
       ...messages,
