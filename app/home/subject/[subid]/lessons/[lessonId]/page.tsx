@@ -206,11 +206,11 @@ export default function LessonDetailsTabs() {
               sx={{
                 overflowY: "auto",
                 maxHeight: "60vh",
-                p: 2,
+                p: 0.5,
                 textAlign: "left",
-                fontSize: { xs: "0.875rem", sm: "1rem" },
+                fontSize: { xs: "0.800rem", sm: "1rem" },
                 lineHeight: { xs: 1.4, sm: 1.6 },
-                "&::-webkit-scrollbar": { width: "8px" },
+                "&::-webkit-scrollbar": { width: "5px" },
                 "&::-webkit-scrollbar-thumb": {
                   backgroundColor: "primary.main",
                   borderRadius: "4px",
