@@ -387,7 +387,7 @@ export default function AccountSettings() {
                 </Select>
               </FormControl>
             </Box>
-            <Button variant="outlined" onClick={() => setOpenPasswordDialog(true)} sx={{ mb: 2 }}>
+            <Button variant="outlined" onClick={() => setOpenPasswordDialog(true)} >
               Change Password
             </Button>
             {/* Achievement Display Section */}

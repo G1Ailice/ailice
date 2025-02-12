@@ -43,9 +43,6 @@ const formatTime = (seconds: number) => {
 
 /**
  * Helper function to get current Philippine (Manila) time as an ISO string.
- *
- * This function calculates UTC time from the local time then adds 8 hours (480 minutes)
- * to return the current time in Manila as an ISO-formatted string.
  */
 const getManilaTimeISO = () => {
   const now = new Date();
@@ -68,8 +65,6 @@ type AnswerValue = string | string[];
 const TrialPage = () => {
   const router = useRouter();
   const { subid, trialId, trial_dataId } = useParams();
-
-  // Authentication and trial state
   const [userId, setUserId] = useState<string | null>(null);
   const [trialData, setTrialData] = useState<any>(null);
   const [trialInfo, setTrialInfo] = useState<any>(null);
@@ -93,8 +88,52 @@ const TrialPage = () => {
 
   // New state for gained EXP info
   const [gainedExp, setGainedExp] = useState<number>(0);
+  const [tabSwitched, setTabSwitched] = useState<boolean>(false);
 
-  // New state for hidden achievement info
+  const isFinishedRef = useRef(false);
+  useEffect(() => {
+    isFinishedRef.current = hasFinished;
+  }, [hasFinished]);
+
+  useEffect(() => {
+    // This ref indicates whether the trial is finished.
+    // (It is already kept updated elsewhere in your code.)
+    // const isFinishedRef = useRef(hasFinished);
+    // ...
+  
+    const handleVisibilityChange = () => {
+      console.log("Visibility changed:", document.visibilityState);
+      // When the document is hidden (e.g. the tab is switched), mark the event.
+      if (document.visibilityState === "hidden" && !isFinishedRef.current) {
+        setTabSwitched(true);
+      }
+    };
+  
+    const handleBlur = () => {
+      console.log("Window blurred");
+      // When the window loses focus (which might be due to tab switching), mark it.
+      if (!isFinishedRef.current) {
+        setTabSwitched(true);
+      }
+    };
+  
+    // Optionally, if you want to know when focus returns:
+    const handleFocus = () => {
+      console.log("Window focused");
+      // You can add any additional logic here if needed.
+    };
+  
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+  
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);  
+
   const [hiddenAchvAchieved, setHiddenAchvAchieved] = useState<boolean>(false);
   const [hiddenAchvDetails, setHiddenAchvDetails] = useState<{
     name: string;
@@ -318,6 +357,11 @@ const TrialPage = () => {
       ]);
     }
 
+    // NEW: Apply tab-switch penalty (reduce score by 20% if user switched tabs)
+    if (tabSwitched) {
+      totalPoints = Math.floor(totalPoints * 0.8);
+    }
+
     const finalRemaining = overrideRemaining !== undefined ? overrideRemaining : remainingTime;
 
     // Compute stars.
@@ -327,20 +371,17 @@ const TrialPage = () => {
     const starCount = 1 + (star2 ? 1 : 0) + (star3 ? 1 : 0);
 
     // Calculate new evaluation score using 70% weight for score and 30% for remaining time.
-    const rawEval = (((totalPoints / allScore) * 0.7) + ((remainingTime / allocatedTime) * 0.3)) * 100;
+    const rawEval = (((totalPoints / allScore) * 0.6) + ((remainingTime / allocatedTime) * 0.4)) * 100;
     const newEval = Number(rawEval.toFixed(1));
 
     // Update current trial_data record.
-    await supabase
-      .from("trial_data")
-      .update({
-        score: totalPoints,
-        status: "Finished",
-        time_concluded: finalRemaining,
-        star: starCount,
-        eval_score: newEval.toString()
-      })
-      .eq("id", trial_dataId);
+    await supabase.from("trial_data").update({
+      score: totalPoints,
+      status: "Finished",
+      time_concluded: finalRemaining,
+      star: starCount,
+      eval_score: newEval.toString()
+    }).eq("id", trial_dataId);
 
     // --- EXP Calculation (unchanged) ---
     const expGain = trialInfo.exp_gain ? Number(trialInfo.exp_gain) : 0;
@@ -362,10 +403,7 @@ const TrialPage = () => {
       .single();
     const currentExp = userRecord && userRecord.exp ? Number(userRecord.exp) : 0;
     const newExp = currentExp + totalExpGained;
-    await supabase
-      .from("users")
-      .update({ exp: newExp })
-      .eq("id", userId);
+    await supabase.from("users").update({ exp: newExp }).eq("id", userId);
 
     setGainedExp(totalExpGained);
 
@@ -377,31 +415,23 @@ const TrialPage = () => {
       .eq("user_id", userId);
 
     if (allAttempts && allAttempts.length >= 2) {
-      // Convert each attempt's eval_score from text to a number.
       const attempts = allAttempts.map((att) => ({
         id: att.id,
         eval: parseFloat(att.eval_score) || 0,
       }));
-      // Determine the maximum evaluation score.
       const maxEval = Math.max(...attempts.map((a) => a.eval));
-      // Get all attempts with the maximum eval_score.
       const bestAttempts = attempts.filter((a) => a.eval === maxEval);
-      // If there is more than one attempt with the max score,
-      // we choose to keep the first one and mark the others for deletion.
       let attemptsToDelete: { id: string; eval: number }[] = [];
       if (bestAttempts.length > 1) {
         attemptsToDelete = bestAttempts.slice(1);
       }
-      // Also mark attempts with a lower evaluation score for deletion.
       const lowerAttempts = attempts.filter((a) => a.eval < maxEval);
       attemptsToDelete = attemptsToDelete.concat(lowerAttempts);
 
-      // Delete associated q_data and trial_data records for the attempts to delete.
       for (const att of attemptsToDelete) {
         await supabase.from("q_data").delete().eq("t_dataid", att.id);
         await supabase.from("trial_data").delete().eq("id", att.id);
       }
-      // Set the attempt message based on whether the current attempt was deleted.
       if (attemptsToDelete.some((a) => a.id === trial_dataId)) {
         localAttemptMessage = "Try again next time";
       } else {
@@ -415,7 +445,6 @@ const TrialPage = () => {
     setAttemptMessage(localAttemptMessage);
 
     // ---- Hidden Achievement Check ----
-    // First, if an hd_achv_id is set, check if the user already has this achievement.
     if (trialInfo.hd_achv_id) {
       const { data: existingAcv } = await supabase
         .from("user_acv")
@@ -424,7 +453,6 @@ const TrialPage = () => {
         .eq("achv_id", trialInfo.hd_achv_id)
         .maybeSingle();
       if (existingAcv) {
-        // User already has the hidden achievement.
         const { data: achvData, error: achvError } = await supabase
           .from("achievements")
           .select("name, description, image")
@@ -437,10 +465,8 @@ const TrialPage = () => {
           setHiddenAchvDetails(achvData);
         }
       } else if (trialInfo.hd_condition) {
-        // Otherwise, evaluate the hidden achievement condition.
         let hiddenAchieved = false;
         try {
-          // Define evaluation variables.
           const score = totalPoints;
           const timeRemaining = remainingTime;
           const timeAllocated = allocatedTime;
@@ -450,7 +476,6 @@ const TrialPage = () => {
           console.error("Error evaluating hidden achievement condition:", e);
         }
         if (hiddenAchieved) {
-          // Use the helper function to get the correct Philippine time.
           const philippineTime = getManilaTimeISO();
           const { error: insertError } = await supabase
             .from("user_acv")
@@ -800,6 +825,14 @@ const TrialPage = () => {
             <Box sx={{ mt: 2, textAlign: "center" }}>
               <Typography variant="body1" color="secondary">
                 {attemptMessage}
+              </Typography>
+            </Box>
+          )}
+          {/* NEW: Display penalty warning if the user switched tabs */}
+          {tabSwitched && (
+            <Box sx={{ mt: 2, textAlign: "center" }}>
+              <Typography variant="body2" sx={{ color: "red", fontWeight: "bold" }}>
+                You can't switch tabs during trial – please try not to cheat (-20% score)
               </Typography>
             </Box>
           )}

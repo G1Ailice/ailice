@@ -434,7 +434,10 @@ const LessonsPage = () => {
     setSelectedTrial(null);
     setStarRating(0);
     setAttempted(false);
+    setHiddenAchvDetails(null);
+    setHiddenAchvUnlocked(false);
   };
+  
 
   // --- Fetch hidden achievement details as soon as selectedTrial and currentUser are available ---
   useEffect(() => {
@@ -729,8 +732,8 @@ const LessonsPage = () => {
             position: "relative",
           }}
         >
-          {selectedLesson?.status === "Final"
-            ? Math.floor(Number(selectedLesson.lesson_no))
+         {selectedLesson?.status === "Final"
+            ? `Lesson ${Math.floor(Number(selectedLesson.lesson_no))} Final `
             : selectedLesson?.lesson_title}
           {/* Ranking Icon Button positioned absolutely in the top-right */}
           {selectedTrial && (

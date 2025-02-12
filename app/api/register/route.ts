@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     console.log(`Error checking existing user: ${existingUserError.message}`);
     return NextResponse.json({
       message: 'Server error. Please try again later.',
-      severity: 'error' // Snackbar warning severity
+      severity: 'error'
     }, { status: 500 });
   }
 
@@ -68,10 +68,16 @@ export async function POST(req: NextRequest) {
   // Hash the password
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  // Insert the user into the 'users' table
+  // Insert the user into the 'users' table with visibility set to "Public"
   const { data, error } = await supabase
     .from('users')
-    .insert([{ email, username, password: hashedPassword, device: [userAgent] }]);
+    .insert([{
+      email,
+      username,
+      password: hashedPassword,
+      device: [userAgent],
+      visibility: 'Public' // Added attribute for registration
+    }]);
 
   if (error) {
     console.log(`Registration failed for email: ${email}, error: ${error.message}`);
