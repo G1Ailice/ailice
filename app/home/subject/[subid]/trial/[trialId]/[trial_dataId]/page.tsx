@@ -90,49 +90,41 @@ const TrialPage = () => {
   const [gainedExp, setGainedExp] = useState<number>(0);
   const [tabSwitched, setTabSwitched] = useState<boolean>(false);
 
+  // Keep a ref of the finish state for tab-blur handling.
   const isFinishedRef = useRef(false);
   useEffect(() => {
     isFinishedRef.current = hasFinished;
   }, [hasFinished]);
 
   useEffect(() => {
-    // This ref indicates whether the trial is finished.
-    // (It is already kept updated elsewhere in your code.)
-    // const isFinishedRef = useRef(hasFinished);
-    // ...
-  
     const handleVisibilityChange = () => {
       console.log("Visibility changed:", document.visibilityState);
-      // When the document is hidden (e.g. the tab is switched), mark the event.
       if (document.visibilityState === "hidden" && !isFinishedRef.current) {
         setTabSwitched(true);
       }
     };
-  
+
     const handleBlur = () => {
       console.log("Window blurred");
-      // When the window loses focus (which might be due to tab switching), mark it.
       if (!isFinishedRef.current) {
         setTabSwitched(true);
       }
     };
-  
-    // Optionally, if you want to know when focus returns:
+
     const handleFocus = () => {
       console.log("Window focused");
-      // You can add any additional logic here if needed.
     };
-  
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("blur", handleBlur);
     window.addEventListener("focus", handleFocus);
-  
+
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("blur", handleBlur);
       window.removeEventListener("focus", handleFocus);
     };
-  }, []);  
+  }, []);
 
   const [hiddenAchvAchieved, setHiddenAchvAchieved] = useState<boolean>(false);
   const [hiddenAchvDetails, setHiddenAchvDetails] = useState<{
@@ -182,7 +174,7 @@ const TrialPage = () => {
           return;
         }
 
-        // Get trial info (we now include hd_condition and hd_achv_id)
+        // Get trial info (including hd_condition and hd_achv_id)
         const { data: trialInfoRes, error: trialInfoError } = await supabase
           .from("trials")
           .select(
@@ -221,10 +213,8 @@ const TrialPage = () => {
         const savedOrder = localStorage.getItem(questionOrderKey);
         let finalQuestions: Question[];
         if (savedOrder) {
-          // Use the saved order.
           finalQuestions = JSON.parse(savedOrder);
         } else {
-          // Shuffle questions and then save the order.
           finalQuestions = [...questionsRes].sort(() => Math.random() - 0.5);
           localStorage.setItem(questionOrderKey, JSON.stringify(finalQuestions));
         }
@@ -239,7 +229,7 @@ const TrialPage = () => {
     fetchData();
   }, [router, trial_dataId, trialId, questionOrderKey]);
 
-  // Restore user's answers (if any) and current question index from localStorage.
+  // Restore user's answers and current question index from localStorage.
   useEffect(() => {
     const savedAnswers = localStorage.getItem(userAnswersKey);
     if (savedAnswers) {
@@ -270,6 +260,7 @@ const TrialPage = () => {
       const elapsedSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
       const remaining = trialInfo.time - elapsedSeconds;
       if (remaining <= 0) {
+        // Set remaining time to 0 and trigger submission with override of 0.
         setRemainingTime(0);
         (async () => {
           await supabase
@@ -320,10 +311,17 @@ const TrialPage = () => {
     setHasFinished(true);
     setIsSubmitting(true);
 
+    // Pull the latest answers from localStorage.
+    const storedAnswers = JSON.parse(localStorage.getItem(userAnswersKey) || "{}");
+
+    // Calculate final remaining value.
+    const finalRemainingValue =
+      overrideRemaining !== undefined ? overrideRemaining : remainingTime;
+    setRemainingTime(finalRemainingValue);
+
     let totalPoints = 0;
-    // Loop through each question, calculate points, and insert a q_data record.
     for (const question of questions) {
-      const userAnswer = userAnswers[question.id];
+      const userAnswer = storedAnswers[question.id];
       let awardedPoint = 0;
       if (question.qtype === "Single") {
         if (typeof userAnswer === "string" && question.qcorrectanswer[0] === userAnswer) {
@@ -357,33 +355,36 @@ const TrialPage = () => {
       ]);
     }
 
-    // NEW: Apply tab-switch penalty (reduce score by 20% if user switched tabs)
+    // (Do not force score to 0 if time runs out—only the remaining time is 0.)
+    // Apply tab-switch penalty if applicable.
     if (tabSwitched) {
       totalPoints = Math.floor(totalPoints * 0.8);
     }
 
-    const finalRemaining = overrideRemaining !== undefined ? overrideRemaining : remainingTime;
-
-    // Compute stars.
+    // Use finalRemainingValue for evaluation calculations.
     const star1 = true;
     const star2 = star1 && (allScore > 0 ? totalPoints / allScore >= 0.7 : false);
-    const star3 = star2 && (allocatedTime > 0 ? remainingTime / allocatedTime >= 0.35 : false);
+    const star3 =
+      star2 && (allocatedTime > 0 ? finalRemainingValue / allocatedTime >= 0.35 : false);
     const starCount = 1 + (star2 ? 1 : 0) + (star3 ? 1 : 0);
 
-    // Calculate new evaluation score using 70% weight for score and 30% for remaining time.
-    const rawEval = (((totalPoints / allScore) * 0.6) + ((remainingTime / allocatedTime) * 0.4)) * 100;
+    const rawEval =
+      (((totalPoints / allScore) * 0.6) + ((finalRemainingValue / allocatedTime) * 0.4)) * 100;
     const newEval = Number(rawEval.toFixed(1));
 
-    // Update current trial_data record.
-    await supabase.from("trial_data").update({
-      score: totalPoints,
-      status: "Finished",
-      time_concluded: finalRemaining,
-      star: starCount,
-      eval_score: newEval.toString()
-    }).eq("id", trial_dataId);
+    // Update trial_data record.
+    await supabase
+      .from("trial_data")
+      .update({
+        score: totalPoints,
+        status: "Finished",
+        time_concluded: finalRemainingValue,
+        star: starCount,
+        eval_score: newEval.toString(),
+      })
+      .eq("id", trial_dataId);
 
-    // --- EXP Calculation (unchanged) ---
+    // EXP Calculation.
     const expGain = trialInfo.exp_gain ? Number(trialInfo.exp_gain) : 0;
     const gainedExpStars = (starCount / 3) * expGain;
 
@@ -393,7 +394,8 @@ const TrialPage = () => {
       .eq("trial_id", trialId)
       .eq("user_id", userId);
 
-    const bonusExp = attemptCount === 1 && trialInfo.first_exp ? Number(trialInfo.first_exp) : 0;
+    const bonusExp =
+      attemptCount === 1 && trialInfo.first_exp ? Number(trialInfo.first_exp) : 0;
     const totalExpGained = gainedExpStars + bonusExp;
 
     const { data: userRecord } = await supabase
@@ -432,11 +434,9 @@ const TrialPage = () => {
         await supabase.from("q_data").delete().eq("t_dataid", att.id);
         await supabase.from("trial_data").delete().eq("id", att.id);
       }
-      if (attemptsToDelete.some((a) => a.id === trial_dataId)) {
-        localAttemptMessage = "Try again next time";
-      } else {
-        localAttemptMessage = "You beat your previous attempt";
-      }
+      localAttemptMessage = attemptsToDelete.some((a) => a.id === trial_dataId)
+        ? "Try again next time"
+        : "You beat your previous attempt";
     } else {
       localAttemptMessage = "Good job completing the trial";
     }
@@ -444,7 +444,7 @@ const TrialPage = () => {
     setFinalScore(totalPoints);
     setAttemptMessage(localAttemptMessage);
 
-    // ---- Hidden Achievement Check ----
+    // Hidden Achievement Check.
     if (trialInfo.hd_achv_id) {
       const { data: existingAcv } = await supabase
         .from("user_acv")
@@ -468,10 +468,23 @@ const TrialPage = () => {
         let hiddenAchieved = false;
         try {
           const score = totalPoints;
-          const timeRemaining = remainingTime;
+          const timeRemaining = finalRemainingValue;
           const timeAllocated = allocatedTime;
           const allScoreVal = trialInfo.allscore;
-          hiddenAchieved = eval(trialInfo.hd_condition);
+          // Compute attempt count from all attempts.
+          const { count: attemptCount } = await supabase
+            .from("trial_data")
+            .select("id", { count: "exact", head: true })
+            .eq("trial_id", trialId)
+            .eq("user_id", userId);
+          hiddenAchieved = Function(
+            "score",
+            "timeRemaining",
+            "timeAllocated",
+            "allScoreVal",
+            "attemptCount",
+            "return " + trialInfo.hd_condition
+          )(score, timeRemaining, timeAllocated, allScoreVal, attemptCount);
         } catch (e) {
           console.error("Error evaluating hidden achievement condition:", e);
         }
@@ -500,12 +513,14 @@ const TrialPage = () => {
         }
       }
     }
-    // -----------------------------------
 
-    // Clear the locally stored trial data after finishing.
+    // Clear localStorage.
     localStorage.removeItem(questionOrderKey);
     localStorage.removeItem(userAnswersKey);
     localStorage.removeItem(currentIndexKey);
+
+    // Delay opening the dialog to ensure state updates (score, etc.) are fully processed.
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
     setOpenDialog(true);
     setIsSubmitting(false);
@@ -828,7 +843,7 @@ const TrialPage = () => {
               </Typography>
             </Box>
           )}
-          {/* NEW: Display penalty warning if the user switched tabs */}
+          {/* Display penalty warning if the user switched tabs */}
           {tabSwitched && (
             <Box sx={{ mt: 2, textAlign: "center" }}>
               <Typography variant="body2" sx={{ color: "red", fontWeight: "bold" }}>
@@ -849,12 +864,7 @@ const TrialPage = () => {
           </Box>
         </DialogContent>
         <DialogActions sx={{ justifyContent: "center", pb: 2 }}>
-          <Button
-            onClick={handleDialogClose}
-            variant="contained"
-            color="primary"
-            sx={{ px: 4, py: 1 }}
-          >
+          <Button onClick={handleDialogClose} variant="contained" color="primary" sx={{ px: 4, py: 1 }}>
             Close
           </Button>
         </DialogActions>
