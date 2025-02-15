@@ -116,138 +116,139 @@ export default function HomePage() {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      {/* Introduction Section */}
-      <Box
-        display="flex"
-        flexDirection="column"
-        alignItems="center"
-        justifyContent="center"
-        textAlign="center"
-        p={4}
-        mb={4}
-        sx={{
-          background: `linear-gradient(135deg, ${blue[50]} 0%, ${blue[100]} 100%)`,
-          borderRadius: '12px',
-          boxShadow: '0 6px 12px rgba(0, 0, 0, 0.1)',
-          animation: `${fadeIn} 0.8s ease-out forwards`,
-        }}
-      >
-        <Typography
-          variant="h4"
-          sx={{
-            fontWeight: 700,
-            color: blue[900],
-            mb: 1,
-          }}
-        >
-          Welcome to Ailice
-        </Typography>
-        <Typography
-          variant="body1"
-          sx={{
-            fontSize: '1.1rem',
-            color: grey[800],
-            maxWidth: 600,
-          }}
-        >
-          Ailice is a platform where you can learn, challenge yourself, and achieve your goals.
-          Explore our subjects and interact with our AI chatbot for guidance along the way.
-        </Typography>
-      </Box>
+<Container maxWidth="lg" sx={{ py: 4 }}>
+  {/* Introduction Section */}
+  <Box
+    display="flex"
+    flexDirection="column"
+    alignItems="center"
+    justifyContent="center"
+    textAlign="center"
+    p={4}
+    mb={4}
+    sx={{
+      background: `linear-gradient(135deg, ${blue[50]} 0%, ${blue[100]} 100%)`,
+      borderRadius: '16px',
+      boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)',
+      animation: `${fadeIn} 0.8s ease-out forwards`,
+    }}
+  >
+    <Typography
+      variant="h4"
+      sx={{
+        fontWeight: 700,
+        color: blue[900],
+        mb: 1,
+      }}
+    >
+      Welcome to Ailice
+    </Typography>
+    <Typography
+      variant="body1"
+      sx={{
+        fontSize: '1.1rem',
+        color: grey[800],
+        maxWidth: 600,
+      }}
+    >
+      Ailice is a platform where you can learn, challenge yourself, and achieve your goals.
+      Explore our subjects and interact with our AI chatbot for guidance along the way.
+    </Typography>
+  </Box>
 
-      {/* Subjects Section */}
-      <Box
-        display="flex"
-        flexDirection="column"
-        alignItems="center"
-        justifyContent="center"
-        p={4}
-        sx={{
-          backgroundColor: grey[200],
-          borderRadius: '12px',
-          boxShadow: '0 6px 12px rgba(0, 0, 0, 0.1)',
-          animation: `${fadeIn} 0.8s ease-out forwards`,
-        }}
-      >
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 600,
-            color: grey[900],
-            mb: 3,
-          }}
-        >
-          Available Subjects
-        </Typography>
+  {/* Subjects Section */}
+  <Box
+    display="flex"
+    flexDirection="column"
+    alignItems="center"
+    justifyContent="center"
+    p={4}
+    sx={{
+      backgroundColor: grey[200],
+      borderRadius: '16px',
+      boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)',
+      animation: `${fadeIn} 0.8s ease-out forwards`,
+    }}
+  >
+    <Typography
+      variant="h5"
+      sx={{
+        fontWeight: 600,
+        color: grey[900],
+        mb: 3,
+      }}
+    >
+      Available Subjects
+    </Typography>
 
-        {/* Subject Cards */}
-        <Box
-          display="flex"
-          flexDirection="row"
-          flexWrap="wrap"
-          justifyContent="center"
-          gap={3}
-          sx={{
-            width: '100%',
-          }}
-        >
-          {subjects.length > 0 ? (
-            subjects.map((subject) => (
-              <Paper
-                key={subject.id}
-                elevation={4}
-                sx={{
-                  p: 4,
-                  textAlign: 'center',
-                  cursor: isProcessing ? 'not-allowed' : 'pointer',
-                  flex: {
-                    xs: '0 1 calc(100% - 1rem)',
-                    sm: '0 1 calc(45% - 1rem)',
-                    md: '0 1 calc(30% - 1rem)',
-                  },
-                  backgroundColor: grey[100],
-                  borderRadius: '12px',
-                  boxShadow: '0 4px 8px rgba(0, 0, 0, 0.1)',
-                  transition: 'transform 0.3s ease, box-shadow 0.3s ease',
-                  animation: `${fadeIn} 0.8s ease-out forwards`,
-                  '&:hover': {
-                    transform: 'translateY(-5px)',
-                    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.2)',
-                  },
-                  '&:active': {
-                    animation: `${clickAnimation} 0.2s ease`,
-                  },
-                  opacity: isProcessing ? 0.5 : 1,
-                }}
-                onClick={() => handleSubjectClick(subject.id)}
-              >
-                <Typography
-                  variant="h6"
-                  sx={{
-                    fontSize: '1.1rem',
-                    color: grey[800],
-                    fontWeight: 600,
-                  }}
-                >
-                  {subject.sub}
-                </Typography>
-              </Paper>
-            ))
-          ) : (
+    {/* Subject Cards */}
+    <Box
+      display="flex"
+      flexDirection="row"
+      flexWrap="wrap"
+      justifyContent="center"
+      gap={3}
+      sx={{
+        width: '100%',
+      }}
+    >
+      {subjects.length > 0 ? (
+        subjects.map((subject) => (
+          <Paper
+            key={subject.id}
+            elevation={4}
+            sx={{
+              p: 4,
+              textAlign: 'center',
+              cursor: isProcessing ? 'not-allowed' : 'pointer',
+              flex: {
+                xs: '0 1 calc(100% - 1rem)',
+                sm: '0 1 calc(45% - 1rem)',
+                md: '0 1 calc(30% - 1rem)',
+              },
+              backgroundColor: grey[100],
+              borderRadius: '16px',
+              boxShadow: '0 6px 12px rgba(0, 0, 0, 0.1)',
+              transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+              animation: `${fadeIn} 0.8s ease-out forwards`,
+              '&:hover': {
+                transform: 'translateY(-8px)',
+                boxShadow: '0 12px 24px rgba(0, 0, 0, 0.15)',
+              },
+              '&:active': {
+                animation: `${clickAnimation} 0.2s ease`,
+              },
+              opacity: isProcessing ? 0.5 : 1,
+            }}
+            onClick={() => handleSubjectClick(subject.id)}
+          >
             <Typography
               variant="h6"
               sx={{
-                color: grey[600],
-                textAlign: 'center',
-                mt: 4,
+                fontSize: '1.1rem',
+                color: grey[800],
+                fontWeight: 600,
               }}
             >
-              No subjects available
+              {subject.sub}
             </Typography>
-          )}
-        </Box>
-      </Box>
-    </Container>
+          </Paper>
+        ))
+      ) : (
+        <Typography
+          variant="h6"
+          sx={{
+            color: grey[600],
+            textAlign: 'center',
+            mt: 4,
+          }}
+        >
+          No subjects available
+        </Typography>
+      )}
+    </Box>
+  </Box>
+</Container>
+
   );
 }

@@ -1,4 +1,3 @@
-// layout.tsx
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -23,6 +22,7 @@ import {
   useMediaQuery,
   createTheme,
   Skeleton,
+  CircularProgress,
 } from '@mui/material';
 import { grey, blue } from '@mui/material/colors';
 import { createClient } from '@supabase/supabase-js';
@@ -67,6 +67,9 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
   const [userLevel, setUserLevel] = useState({ level: 1, currentExp: 0, nextExp: 100 });
   const router = useRouter();
   const isMobile = useMediaQuery('(max-width:600px)');
+
+  // New state to prevent rendering until auth check completes
+  const [authChecked, setAuthChecked] = useState(false);
 
   // AI Chat state
   const [messages, setMessages] = useState<Message[]>([]);
@@ -143,6 +146,8 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
           } else {
             setIsButtonDisabled(false);
           }
+          // Authentication is confirmed – render the layout
+          setAuthChecked(true);
         } else {
           router.push('/');
         }
@@ -205,7 +210,6 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
     const currentInput = input;
     setInput('');
 
-    // Set loading state so the Skeleton appears
     setIsLoading(true);
 
     try {
@@ -272,7 +276,24 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
     }
   };
 
-  const open = Boolean(anchorEl);
+  const openPopover = Boolean(anchorEl);
+
+  // Prevent rendering the layout until auth is checked.
+  if (!authChecked) {
+    return (
+      <Box
+        sx={{
+          height: '100vh',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: grey[100],
+        }}
+      >
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
     <ThemeProvider theme={theme}>
@@ -390,7 +411,7 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
 
           <Drawer
             anchor="bottom"
-            open={open}
+            open={openPopover}
             onClose={handleClose}
             PaperProps={{
               sx: {
@@ -533,7 +554,7 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
                       </Avatar>
                     </Tooltip>
                     <Popover
-                      open={open}
+                      open={openPopover}
                       anchorEl={anchorEl}
                       onClose={handleClose}
                       anchorOrigin={{
@@ -593,23 +614,11 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
                           variant="contained"
                           color="secondary"
                           onClick={handleAccountSettings}
-                          sx={{
-                            marginBottom: '8px',
-                            fontSize: '1rem',
-                            width: '100%',
-                          }}
+                          sx={{ marginBottom: '8px', width: '100%' }}
                         >
                           Account Settings
                         </Button>
-                        <Button
-                          variant="contained"
-                          color="error"
-                          onClick={handleLogout}
-                          sx={{
-                            fontSize: '1rem',
-                            width: '100%',
-                          }}
-                        >
+                        <Button variant="contained" color="error" onClick={handleLogout} sx={{ width: '100%' }}>
                           Logout
                         </Button>
                       </Box>
@@ -655,7 +664,6 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
         <Box
           sx={{
             position: 'fixed',
-            // For mobile, set the bottom offset to 80px so it does not block the bottom nav
             bottom: isMobile ? 80 : 20,
             right: isMobile ? 0 : 20,
             width: isMobile ? '100%' : 350,

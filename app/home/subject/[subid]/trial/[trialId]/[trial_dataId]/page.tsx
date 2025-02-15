@@ -62,6 +62,20 @@ interface Question {
 
 type AnswerValue = string | string[];
 
+/**
+ * Memoized component for question content.
+ * This prevents re-rendering the embed (e.g., video) if the question content hasn't changed.
+ */
+const MemoizedQuestionContent = React.memo(({ qcontent }: { qcontent: string }) => {
+  return (
+    <Typography
+      variant="body1"
+      dangerouslySetInnerHTML={{ __html: qcontent }}
+      sx={{ fontSize: { xs: "1rem", md: "1.25rem" }, lineHeight: 1.6 }}
+    />
+  );
+});
+
 const TrialPage = () => {
   const router = useRouter();
   const { subid, trialId, trial_dataId } = useParams();
@@ -260,7 +274,6 @@ const TrialPage = () => {
       const elapsedSeconds = Math.floor((now.getTime() - startTime.getTime()) / 1000);
       const remaining = trialInfo.time - elapsedSeconds;
       if (remaining <= 0) {
-        // Set remaining time to 0 and trigger submission with override of 0.
         setRemainingTime(0);
         (async () => {
           await supabase
@@ -311,10 +324,8 @@ const TrialPage = () => {
     setHasFinished(true);
     setIsSubmitting(true);
 
-    // Pull the latest answers from localStorage.
     const storedAnswers = JSON.parse(localStorage.getItem(userAnswersKey) || "{}");
 
-    // Calculate final remaining value.
     const finalRemainingValue =
       overrideRemaining !== undefined ? overrideRemaining : remainingTime;
     setRemainingTime(finalRemainingValue);
@@ -355,24 +366,20 @@ const TrialPage = () => {
       ]);
     }
 
-    // (Do not force score to 0 if time runs out—only the remaining time is 0.)
-    // Apply tab-switch penalty if applicable.
     if (tabSwitched) {
       totalPoints = Math.floor(totalPoints * 0.8);
     }
 
-    // Use finalRemainingValue for evaluation calculations.
     const star1 = true;
     const star2 = star1 && (allScore > 0 ? totalPoints / allScore >= 0.7 : false);
     const star3 =
-      star2 && (allocatedTime > 0 ? finalRemainingValue / allocatedTime >= 0.35 : false);
+      star2 && (allocatedTime > 0 ? remainingTime / allocatedTime >= 0.35 : false);
     const starCount = 1 + (star2 ? 1 : 0) + (star3 ? 1 : 0);
 
     const rawEval =
-      (((totalPoints / allScore) * 0.6) + ((finalRemainingValue / allocatedTime) * 0.4)) * 100;
+      (((totalPoints / allScore) * 0.6) + ((remainingTime / allocatedTime) * 0.4)) * 100;
     const newEval = Number(rawEval.toFixed(1));
 
-    // Update trial_data record.
     await supabase
       .from("trial_data")
       .update({
@@ -384,7 +391,6 @@ const TrialPage = () => {
       })
       .eq("id", trial_dataId);
 
-    // EXP Calculation.
     const expGain = trialInfo.exp_gain ? Number(trialInfo.exp_gain) : 0;
     const gainedExpStars = (starCount / 3) * expGain;
 
@@ -444,7 +450,6 @@ const TrialPage = () => {
     setFinalScore(totalPoints);
     setAttemptMessage(localAttemptMessage);
 
-    // Hidden Achievement Check.
     if (trialInfo.hd_achv_id) {
       const { data: existingAcv } = await supabase
         .from("user_acv")
@@ -468,10 +473,9 @@ const TrialPage = () => {
         let hiddenAchieved = false;
         try {
           const score = totalPoints;
-          const timeRemaining = finalRemainingValue;
+          const timeRemaining = remainingTime;
           const timeAllocated = allocatedTime;
           const allScoreVal = trialInfo.allscore;
-          // Compute attempt count from all attempts.
           const { count: attemptCount } = await supabase
             .from("trial_data")
             .select("id", { count: "exact", head: true })
@@ -514,12 +518,10 @@ const TrialPage = () => {
       }
     }
 
-    // Clear localStorage.
     localStorage.removeItem(questionOrderKey);
     localStorage.removeItem(userAnswersKey);
     localStorage.removeItem(currentIndexKey);
 
-    // Delay opening the dialog to ensure state updates (score, etc.) are fully processed.
     await new Promise((resolve) => setTimeout(resolve, 500));
 
     setOpenDialog(true);
@@ -554,7 +556,6 @@ const TrialPage = () => {
     );
   }
 
-  // For dialog display: recompute stars for display.
   const star1Display = true;
   const star2Display = star1Display && (allScore > 0 ? finalScore / allScore >= 0.7 : false);
   const star3Display = star2Display && (allocatedTime > 0 ? remainingTime / allocatedTime >= 0.35 : false);
@@ -562,10 +563,10 @@ const TrialPage = () => {
   const currentQuestion = questions[currentQuestionIndex];
 
   return (
-    <Container maxWidth="md" sx={{ mt: 4, p: { xs: 2, md: 4 } }}>
+    <Container maxWidth="md" sx={{ mt: 2, p: { xs: 2, md: 4 } }}>
       {/* Header Section */}
-      <Box sx={{ mb: 3, textAlign: "center" }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: "bold", mb: 1 }}>
+      <Box sx={{ mb: 1, textAlign: "center" }}>
+        <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
           {trialInfo?.trial_title || "Trial"}
         </Typography>
         <Typography variant="h6" sx={{ color: "primary.main" }}>
@@ -574,7 +575,7 @@ const TrialPage = () => {
       </Box>
 
       {/* Question Display */}
-      <Box sx={{ mb: 4 }}>
+      <Box sx={{ mb: 2 }}>
         {currentQuestion && (
           <Slide
             in={true}
@@ -599,11 +600,7 @@ const TrialPage = () => {
                 </Typography>
               </Box>
               <Box sx={{ mb: 2 }}>
-                <Typography
-                  variant="body1"
-                  dangerouslySetInnerHTML={{ __html: currentQuestion.qcontent }}
-                  sx={{ fontSize: { xs: "1rem", md: "1.25rem" }, lineHeight: 1.6 }}
-                />
+                <MemoizedQuestionContent qcontent={currentQuestion.qcontent} />
               </Box>
               {currentQuestion.qtype === "Single" && (
                 <FormControl component="fieldset" fullWidth>
