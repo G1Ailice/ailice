@@ -590,121 +590,114 @@ const LessonsPage = () => {
             {subjectName}
           </Typography>
           {Object.entries(groupedLessonsByQuarter).length > 0 ? (
-            Object.entries(groupedLessonsByQuarter).map(([quarter, lessonsInQuarter]) => {
-              // Sort lessons by lesson_no (converted to a number for correct order)
-              const sortedLessons = lessonsInQuarter.sort(
-                (a, b) => parseFloat(a.lesson_no) - parseFloat(b.lesson_no)
-              );
-              // Determine if the quarter is locked by checking the first lesson's unlock status
-              const firstLesson = sortedLessons[0];
-              const quarterLocked = !unlockedLessons[firstLesson.id];
-              return (
-                <Box
-                  key={quarter}
-                  sx={{
-                    mb: { xs: 3, sm: 4 },
-                    p: 2,
-                    backgroundColor: "rgba(255,255,255,0.8)",
-                    borderRadius: 2,
-                  }}
-                >
-                  <Typography
-                    variant="h5"
-                    sx={{
-                      mb: 2,
-                      color: "#555",
-                      fontWeight: 600,
-                      fontSize: { xs: "1.1rem", sm: "1.25rem" }
-                    }}
-                  >
-                    Quarter {quarter}
-                  </Typography>
-                  {quarterLocked && (
-                    <Typography variant="subtitle1" color="error" sx={{ mb: 2 }}>
-                      This quarter is locked. Finish the previous quarter.
-                    </Typography>
-                  )}
-                  <Box
-                    display="flex"
-                    alignItems="center"
-                    gap={{ xs: 1, sm: 2 }}
-                    flexWrap="wrap"
-                  >
-                    {sortedLessons.map((lesson) => {
-                      // Check if the lesson is final based on its status.
-                      const isFinal = lesson.status === "Final";
-                      const unlocked = unlockedLessons[lesson.id];
-                      // Check if the lesson number is decimal.
-                      const isDecimal = !Number.isInteger(Number(lesson.lesson_no));
-                      // For final lessons, display only the whole-number part and append "Final"
-                      const displayLessonNo = isFinal
-                        ? Math.floor(Number(lesson.lesson_no))
-                        : lesson.lesson_no;
-                      const buttonLabel = isFinal
-                        ? `Lesson ${displayLessonNo} Final`
-                        : `Lesson ${lesson.lesson_no}`;
-                      return (
-                        <Button
-                          key={lesson.id}
-                          disabled={
-                            isProcessing || ((lesson.status === "Locked" || isFinal) && !unlocked)
-                          }
-                          sx={{
-                            p: isDecimal ? { xs: 0.5, sm: 1 } : { xs: 1, sm: 1.5 },
+  Object.entries(groupedLessonsByQuarter)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([quarter, lessonsInQuarter]) => {
+      // First, sort lessonsInQuarter by lesson_no (as a number)
+      const sortedLessonsInQuarter = (lessonsInQuarter as any[]).sort(
+        (a, b) => parseFloat(a.lesson_no) - parseFloat(b.lesson_no)
+      );
+
+      // Then group them by the whole-number portion of lesson_no
+      const groupedByLessonNo = sortedLessonsInQuarter.reduce(
+        (acc: Record<string, any[]>, lesson: any) => {
+          const lessonNum = parseFloat(lesson.lesson_no);
+          const groupKey = isNaN(lessonNum)
+            ? "0"
+            : Math.floor(lessonNum).toString();
+          if (!acc[groupKey]) {
+            acc[groupKey] = [];
+          }
+          acc[groupKey].push(lesson);
+          return acc;
+        },
+        {} as Record<string, any[]>
+      );
+
+      return (
+        <Box key={quarter} sx={{ mb: 4 }}>
+          <Typography variant="h5" sx={{ mb: 2 }}>
+            Quarter {quarter}
+          </Typography>
+          {Object.entries(groupedByLessonNo)
+            .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
+            .map(([groupKey, lessonsGroup]) => (
+              <Box key={`${quarter}-${groupKey}`} sx={{ mb: 2 }}>
+                <Box display="flex" alignItems="center" gap={{ xs: 1, sm: 2 }}>
+                  {lessonsGroup.map((lesson: any) => {
+                    const isFinal = lesson.status === "Final";
+                    const unlocked = unlockedLessons[lesson.id];
+                    const isDecimal = !Number.isInteger(Number(lesson.lesson_no));
+                    const displayLessonNo = isFinal
+                      ? Math.floor(Number(lesson.lesson_no))
+                      : lesson.lesson_no;
+                    const buttonLabel = isFinal
+                      ? `Lesson ${displayLessonNo} Final`
+                      : `Lesson ${lesson.lesson_no}`;
+                    return (
+                      <Button
+                        key={lesson.id}
+                        disabled={
+                          isProcessing ||
+                          ((lesson.status === "Locked" || isFinal) && !unlocked)
+                        }
+                        sx={{
+                          p: isDecimal ? { xs: 0.5, sm: 1 } : { xs: 1, sm: 1.5 },
+                          backgroundColor:
+                            (lesson.status === "Locked" || isFinal) && !unlocked
+                              ? "#ccc"
+                              : isFinal
+                              ? "#d32f2f"
+                              : "#1976d2",
+                          color: "#fff",
+                          textTransform: "none",
+                          borderRadius: "8px",
+                          boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
+                          transition: "transform 0.3s, box-shadow 0.3s",
+                          "&:hover": {
+                            transform: "scale(1.03)",
+                            boxShadow: "0px 4px 8px rgba(0,0,0,0.3)",
                             backgroundColor:
-                              (lesson.status === "Locked" || isFinal) && !unlocked
+                              ((lesson.status === "Locked" || isFinal) && !unlocked)
                                 ? "#ccc"
                                 : isFinal
-                                ? "#d32f2f"
-                                : "#1976d2",
-                            color: "#fff",
-                            textTransform: "none",
-                            borderRadius: "8px",
-                            boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
-                            transition: "transform 0.3s, box-shadow 0.3s",
-                            "&:hover": {
-                              transform: "scale(1.03)",
-                              boxShadow: "0px 4px 8px rgba(0,0,0,0.3)",
-                              backgroundColor:
-                                ((lesson.status === "Locked" || isFinal) && !unlocked)
-                                  ? "#ccc"
-                                  : isFinal
-                                  ? "#c62828"
-                                  : "#1565c0",
+                                ? "#c62828"
+                                : "#1565c0",
+                          },
+                        }}
+                        onClick={() => handleLessonClick(lesson)}
+                      >
+                        <AssignmentIcon
+                          sx={{ mr: isDecimal ? { xs: 0.5, sm: 0.5 } : { xs: 0.5, sm: 1 } }}
+                        />
+                        <Typography
+                          variant={isDecimal ? "subtitle2" : "h6"}
+                          sx={{
+                            fontSize: {
+                              xs: isDecimal ? "0.7rem" : "0.9rem",
+                              sm: isDecimal ? "0.85rem" : "1rem",
                             },
                           }}
-                          onClick={() => handleLessonClick(lesson)}
                         >
-                          <AssignmentIcon
-                            sx={{ mr: isDecimal ? { xs: 0.5, sm: 0.5 } : { xs: 0.5, sm: 1 } }}
-                          />
-                          <Typography
-                            variant={isDecimal ? "subtitle2" : "h6"}
-                            sx={{
-                              fontSize: {
-                                xs: isDecimal ? "0.7rem" : "0.9rem",
-                                sm: isDecimal ? "0.85rem" : "1rem",
-                              },
-                            }}
-                          >
-                            {buttonLabel}
-                          </Typography>
-                        </Button>
-                      );
-                    })}
-                  </Box>
-                  <Divider sx={{ mt: 3, borderColor: "rgba(0,0,0,0.1)" }} />
+                          {buttonLabel}
+                        </Typography>
+                      </Button>
+                    );
+                  })}
                 </Box>
-              );
-            })
-          ) : (
-            <Typography
-              align="center"
-              sx={{ color: "#777", mt: { xs: 2, sm: 4 } }}
-            >
-              No lessons found for this subject.
-            </Typography>
-          )}
+                <Divider sx={{ mt: 1, borderColor: "rgba(0,0,0,0.1)" }} />
+              </Box>
+            ))}
+        </Box>
+      );
+    })
+) : (
+  <Typography align="center" sx={{ color: "#777", mt: { xs: 2, sm: 4 } }}>
+    No lessons found for this subject.
+  </Typography>
+)}
+
+
         </Paper>
       </Box>
       {/* Lesson Dialog with Transition */}

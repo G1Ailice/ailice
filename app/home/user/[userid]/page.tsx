@@ -7,11 +7,10 @@ import {
   Box,
   Typography,
   Avatar,
-  CircularProgress,
   Paper,
+  Skeleton,
 } from "@mui/material";
 import { createClient } from "@supabase/supabase-js";
-import { grey } from "@mui/material/colors";
 
 // Initialize Supabase Client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -36,7 +35,7 @@ interface UserData {
   username: string;
   profile_pic: string | null;
   exp: number;
-  visibility: "public" | "private";
+  visibility: "Public" | "Private";
 }
 
 interface Achievement {
@@ -53,6 +52,7 @@ export default function UserProfilePage() {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [currentUser, setCurrentUser] = useState<{ id: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [achievementsLoading, setAchievementsLoading] = useState(true);
 
   // 1. Fetch the current logged-in user (if any) via the /api/check-auth endpoint.
   useEffect(() => {
@@ -106,10 +106,8 @@ export default function UserProfilePage() {
   useEffect(() => {
     const fetchAchievements = async () => {
       if (!userData) return;
-
-      // Show full details if profile is public OR the current user is the owner.
       if (
-        userData.visibility === "public" ||
+        userData.visibility === "Public" ||
         (currentUser && currentUser.id === userData.id)
       ) {
         try {
@@ -149,22 +147,29 @@ export default function UserProfilePage() {
           );
         } catch (error) {
           console.error("Error fetching achievements:", error);
+        } finally {
+          setAchievementsLoading(false);
         }
+      } else {
+        setAchievementsLoading(false);
       }
     };
     fetchAchievements();
   }, [userData, currentUser, userid]);
 
+  // Show a skeleton UI while loading the user profile data.
   if (loading || !userData) {
     return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        minHeight="100vh"
-      >
-        <CircularProgress />
-      </Box>
+      <Container maxWidth="sm" sx={{ py: 4 }}>
+        <Paper elevation={4} sx={{ p: 4, borderRadius: 2 }}>
+          <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+            <Skeleton variant="circular" width={100} height={100} />
+            <Skeleton variant="text" width="60%" height={40} />
+            <Skeleton variant="text" width="40%" height={20} />
+            <Skeleton variant="text" width="30%" height={20} />
+          </Box>
+        </Paper>
+      </Container>
     );
   }
 
@@ -188,56 +193,93 @@ export default function UserProfilePage() {
           <Typography variant="h5" sx={{ fontWeight: "bold" }}>
             {userData.username}
           </Typography>
-          {/* Only show the level if the profile is public or if the current user is the owner */}
-          {(userData.visibility === "public" ||
-            (currentUser && currentUser.id === userData.id)) && (
-            <Typography variant="body1">Level {levelData.level}</Typography>
+
+          {/* Visibility Message */}
+          {currentUser && currentUser.id === userData.id ? (
+            <Typography variant="body2" color="text.secondary">
+              {userData.visibility === "Public"
+                ? "Your profile is Public"
+                : "Your profile is currently Private"}
+            </Typography>
+          ) : (
+            userData.visibility === "Private" && (
+              <Typography variant="body2" color="text.secondary">
+                This profile has privated their account
+              </Typography>
+            )
           )}
-          {/* Display Achievements if the profile is public or if the current user is the owner */}
-          {(userData.visibility === "public" ||
-            (currentUser && currentUser.id === userData.id)) &&
-            achievements.length > 0 && (
-              <Box width="100%" mt={4}>
-                <Typography variant="h6" sx={{ mb: 2 }}>
-                  Achievements Gained:
-                </Typography>
-                {achievements.map((achv) => (
-                  <Box
-                    key={achv.achv_id}
-                    display="flex"
-                    alignItems="center"
-                    gap={2}
-                    mb={2}
-                  >
+
+          {(userData.visibility === "Public" ||
+            (currentUser && currentUser.id === userData.id)) && (
+            <>
+              <Typography variant="body1">Level {levelData.level}</Typography>
+
+              {/* Achievements Section */}
+              {achievementsLoading ? (
+                <Box width="100%" mt={4}>
+                  <Skeleton variant="text" width="40%" height={30} />
+                  {[1, 2, 3].map((item) => (
                     <Box
-                      component="img"
-                      src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/achivements/${achv.image}`}
-                      alt={achv.name}
-                      sx={{ width: 60, height: 60, borderRadius: 2 }}
-                    />
-                    <Box>
-                      <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
-                        {achv.name}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                      >
-                        {new Date(achv.time_data).toLocaleString("en-US", {
-                          timeZone: "Asia/Manila",
-                          year: "numeric",
-                          month: "short",
-                          day: "numeric",
-                          hour: "numeric",
-                          minute: "2-digit",
-                          hour12: true,
-                        })}
-                      </Typography>
+                      key={item}
+                      display="flex"
+                      alignItems="center"
+                      gap={2}
+                      mb={2}
+                    >
+                      <Skeleton variant="rectangular" width={60} height={60} />
+                      <Box>
+                        <Skeleton variant="text" width={100} height={20} />
+                        <Skeleton variant="text" width={120} height={15} />
+                      </Box>
                     </Box>
+                  ))}
+                </Box>
+              ) : (
+                achievements.length > 0 && (
+                  <Box width="100%" mt={4}>
+                    <Typography variant="h6" sx={{ mb: 2 }}>
+                      Achievements Gained:
+                    </Typography>
+                    {achievements.map((achv) => (
+                      <Box
+                        key={achv.achv_id}
+                        display="flex"
+                        alignItems="center"
+                        gap={2}
+                        mb={2}
+                      >
+                        <Box
+                          component="img"
+                          src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/achivements/${achv.image}`}
+                          alt={achv.name}
+                          sx={{ width: 60, height: 60, borderRadius: 2 }}
+                        />
+                        <Box>
+                          <Typography
+                            variant="subtitle1"
+                            sx={{ fontWeight: "bold" }}
+                          >
+                            {achv.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {new Date(achv.time_data).toLocaleString("en-US", {
+                              timeZone: "Asia/Manila",
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                              hour12: true,
+                            })}
+                          </Typography>
+                        </Box>
+                      </Box>
+                    ))}
                   </Box>
-                ))}
-              </Box>
-            )}
+                )
+              )}
+            </>
+          )}
         </Box>
       </Paper>
     </Container>
