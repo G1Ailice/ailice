@@ -278,7 +278,6 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
 
   const openPopover = Boolean(anchorEl);
 
-  // Prevent rendering the layout until auth is checked.
   if (!authChecked) {
     return (
       <Box
@@ -299,8 +298,6 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
     <ThemeProvider theme={theme}>
       <SpeedInsights />
       <CssBaseline />
-
-      {/* -- (Header, AppBar, BottomNavigation, and Drawer code remains unchanged) -- */}
       {isMobile ? (
         <>
           {/* MOBILE HEADER */}

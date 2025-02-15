@@ -573,8 +573,7 @@ const TrialPage = () => {
           Remaining Time: {formatTime(remainingTime)}
         </Typography>
       </Box>
-
-      {/* Question Display */}
+      
       <Box sx={{ mb: 2 }}>
         {currentQuestion && (
           <Slide
