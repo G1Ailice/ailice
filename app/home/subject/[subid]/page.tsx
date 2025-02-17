@@ -110,7 +110,7 @@ const LessonsPage = () => {
 
       for (const lesson of lessons) {
         // Treat both "Locked" and "Final" lessons the same for unlocking logic
-        if (lesson.status === "Locked" || lesson.content_type === "Final") {
+        if (lesson.status === "Locked" || lesson.status === "Final") {  // <-- Updated condition here
           const trialIdToCheck = lesson.unlocked_by;
           if (!trialIdToCheck) {
             newUnlockedLessons[lesson.id] = false;
@@ -152,6 +152,7 @@ const LessonsPage = () => {
 
     checkUnlockedLessons();
   }, [currentUser, lessons]);
+
 
   // 3. Remove expired trials
   useEffect(() => {

@@ -452,11 +452,20 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
               </Typography>
               <Button
                 variant="contained"
-                color="secondary"
-                onClick={handleAccountSettings}
-                sx={{ marginBottom: '8px', width: '100%' }}
+                onClick={() =>
+                  window.location.href =
+                    "https://docs.google.com/forms/d/e/1FAIpQLScQUGdmUaG2TzA3NO-pKSHpftlCsgKMgtoaYswbjWtzZocqpA/viewform"
+                }
+                sx={{
+                  marginBottom: '8px',
+                  width: '100%',
+                  backgroundColor: '#ff3d00',
+                  '&:hover': {
+                    backgroundColor: '#e63600'
+                  }
+                }}
               >
-                Account Settings
+                System Survey
               </Button>
               <Button variant="contained" color="error" onClick={handleLogout} sx={{ width: '100%' }}>
                 Logout
@@ -614,6 +623,23 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
                           sx={{ marginBottom: '8px', width: '100%' }}
                         >
                           Account Settings
+                        </Button>
+                        <Button
+                          variant="contained"
+                          onClick={() =>
+                            window.location.href =
+                              "https://docs.google.com/forms/d/e/1FAIpQLScQUGdmUaG2TzA3NO-pKSHpftlCsgKMgtoaYswbjWtzZocqpA/viewform"
+                          }
+                          sx={{
+                            marginBottom: '8px',
+                            width: '100%',
+                            backgroundColor: '#ff3d00',
+                            '&:hover': {
+                              backgroundColor: '#e63600'
+                            }
+                          }}
+                        >
+                          System Survey
                         </Button>
                         <Button variant="contained" color="error" onClick={handleLogout} sx={{ width: '100%' }}>
                           Logout

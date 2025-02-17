@@ -71,7 +71,7 @@ const MemoizedQuestionContent = React.memo(({ qcontent }: { qcontent: string }) 
     <Typography
       variant="body1"
       dangerouslySetInnerHTML={{ __html: qcontent }}
-      sx={{ fontSize: { xs: "1rem", md: "1.25rem" }, lineHeight: 1.6 }}
+      sx={{ fontSize: { xs: "0.9rem", md: "1.25rem" }, lineHeight: 1.6 }}
     />
   );
 });
@@ -542,15 +542,24 @@ const TrialPage = () => {
 
   if (loading) {
     return (
-      <Container maxWidth="sm" sx={{ textAlign: "center", mt: 4 }}>
+      <Container
+        maxWidth="sm"
+        sx={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          height: '80vh'
+        }}
+      >
         <CircularProgress />
       </Container>
     );
   }
+  
 
   if (error) {
     return (
-      <Container maxWidth="sm" sx={{ mt: 4 }}>
+      <Container maxWidth="sm" sx={{ mt: { xs: 2, md: 4 } }}>
         <Alert severity="error">{error}</Alert>
       </Container>
     );
@@ -563,18 +572,18 @@ const TrialPage = () => {
   const currentQuestion = questions[currentQuestionIndex];
 
   return (
-    <Container maxWidth="md" sx={{ mt: 2, p: { xs: 2, md: 4 } }}>
+    <Container maxWidth="md" sx={{ mt: { xs: 1, md: 2 }, p: { xs: 0.8, md: 1 }, overflowX: "hidden" }}>
       {/* Header Section */}
-      <Box sx={{ mb: 1, textAlign: "center" }}>
-        <Typography variant="h5" component="h1" sx={{ fontWeight: "bold" }}>
+      <Box sx={{ mb: { xs: 1, md: 2 }, textAlign: "center" }}>
+        <Typography variant="h2" component="h1" sx={{ fontWeight: "bold", fontSize: { xs: "1.5rem", md: "2rem" } }}>
           {trialInfo?.trial_title || "Trial"}
         </Typography>
-        <Typography variant="h6" sx={{ color: "primary.main" }}>
+        <Typography variant="h2" sx={{ color: "primary.main", fontSize: { xs: "1rem", md: "1.25rem" } }}>
           Remaining Time: {formatTime(remainingTime)}
         </Typography>
       </Box>
       
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ mb: { xs: 1.5, md: 2 } }}>
         {currentQuestion && (
           <Slide
             in={true}
@@ -587,18 +596,18 @@ const TrialPage = () => {
             <Paper
               elevation={3}
               sx={{
-                p: { xs: 2, md: 3 },
+                p: { xs: 1.5, md: 2 },
                 borderRadius: "12px",
                 boxShadow: "0 4px 16px rgba(0, 0, 0, 0.15)",
                 backgroundColor: "white",
               }}
             >
-              <Box sx={{ mb: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: "medium" }}>
+              <Box sx={{ mb: { xs: 1.5, md: 2 } }}>
+                <Typography variant="h6" sx={{ fontWeight: "medium", fontSize: { xs: "0.8rem", md: "1rem" } }}>
                   Question {currentQuestionIndex + 1} of {questions.length}
                 </Typography>
               </Box>
-              <Box sx={{ mb: 2 }}>
+              <Box sx={{ mb: { xs: 0.8, md: 1 } }}>
                 <MemoizedQuestionContent qcontent={currentQuestion.qcontent} />
               </Box>
               {currentQuestion.qtype === "Single" && (
@@ -611,9 +620,9 @@ const TrialPage = () => {
                       <FormControlLabel
                         key={option}
                         value={option}
-                        control={<Radio />}
+                        control={<Radio sx={{ fontSize: { xs: "0.6rem", md: "0.8rem" } }} />}
                         label={`${index + 1}. ${option}`}
-                        sx={{ fontSize: { xs: "0.9rem", md: "1rem" } }}
+                        sx={{ fontSize: { xs: "0.75rem", md: "1rem" } }}
                       />
                     ))}
                   </RadioGroup>
@@ -646,10 +655,11 @@ const TrialPage = () => {
                               handleAnswerChange(currentQuestion, newSelections);
                             }}
                             disabled={disableCheckbox}
+                            sx={{ fontSize: { xs: "0.75rem", md: "1rem" } }}
                           />
                         }
                         label={`${index + 1}. ${option}`}
-                        sx={{ fontSize: { xs: "0.9rem", md: "1rem" } }}
+                        sx={{ fontSize: { xs: "0.75rem", md: "1rem" } }}
                       />
                     );
                   })}
@@ -661,7 +671,7 @@ const TrialPage = () => {
                   label="Your Answer"
                   value={userAnswers[currentQuestion.id] || ""}
                   onChange={(e) => handleAnswerChange(currentQuestion, e.target.value)}
-                  sx={{ my: 2 }}
+                  sx={{ my: { xs: 1, md: 2 }, fontSize: { xs: "0.75rem", md: "1rem" } }}
                 />
               )}
             </Paper>
@@ -670,7 +680,7 @@ const TrialPage = () => {
       </Box>
 
       {/* Navigation Buttons */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      <Grid container spacing={2} sx={{ mb: { xs: 1.5, md: 2 } }}>
         <Grid item xs={6}>
           <Button
             variant="contained"
@@ -681,6 +691,7 @@ const TrialPage = () => {
               borderRadius: "8px",
               boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
               textTransform: "none",
+              fontSize: { xs: "0.75rem", md: "1rem" },
               "&:hover": { boxShadow: "0px 4px 8px rgba(0,0,0,0.3)" },
             }}
           >
@@ -697,6 +708,7 @@ const TrialPage = () => {
               borderRadius: "8px",
               boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
               textTransform: "none",
+              fontSize: { xs: "0.75rem", md: "1rem" },
               "&:hover": { boxShadow: "0px 4px 8px rgba(0,0,0,0.3)" },
             }}
           >
@@ -706,16 +718,16 @@ const TrialPage = () => {
       </Grid>
 
       {/* Finish Button */}
-      <Box sx={{ textAlign: "center", mb: 3 }}>
+      <Box sx={{ textAlign: "center", mb: { xs: 1, md: 2 } }}>
         <Button
           variant="contained"
           color="primary"
           onClick={() => finishSubmission()}
           disabled={isSubmitting}
           sx={{
-            px: 4,
-            py: 1.5,
-            fontSize: "1rem",
+            px: { xs: 2, md: 4 },
+            py: { xs: 1, md: 1.5 },
+            fontSize: { xs: "0.75rem", md: "1rem" },
             borderRadius: "8px",
             boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
             textTransform: "none",
@@ -746,22 +758,23 @@ const TrialPage = () => {
             fontWeight: "bold",
             backgroundColor: "primary.main",
             color: "white",
-            py: 2,
+            py: { xs: 1.5, md: 2 },
             borderTopLeftRadius: "16px",
             borderTopRightRadius: "16px",
+            fontSize: { xs: "1rem", md: "1.25rem" },
           }}
         >
           Trial Completed!
         </DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          <Box sx={{ textAlign: "center", mb: 2 }}>
-            <Typography variant="h6" sx={{ mt: 2 }}>
+        <DialogContent sx={{ p: { xs: 2, md: 3 } }}>
+          <Box sx={{ textAlign: "center", mb: { xs: 1, md: 2 } }}>
+            <Typography variant="h6" sx={{ mt: { xs: 1, md: 2 }, fontSize: { xs: "1rem", md: "1.25rem" } }}>
               {trialInfo?.trial_title}
             </Typography>
-            <Typography variant="subtitle1" sx={{ mt: 1 }}>
+            <Typography variant="subtitle1" sx={{ mt: { xs: 0.5, md: 1 }, fontSize: { xs: "0.8rem", md: "1rem" } }}>
               Score: {finalScore} / {allScore}
             </Typography>
-            <Typography variant="subtitle1">
+            <Typography variant="subtitle1" sx={{ fontSize: { xs: "0.8rem", md: "1rem" } }}>
               Remaining Time: {formatTime(remainingTime)} ({remainingTime} seconds)
             </Typography>
           </Box>
@@ -771,47 +784,47 @@ const TrialPage = () => {
               justifyContent: "center",
               alignItems: "center",
               gap: 1,
-              mb: 2,
+              mb: { xs: 1, md: 2 },
             }}
           >
             {star1Display ? (
-              <StarIcon color="warning" fontSize="large" />
+              <StarIcon color="warning" sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
             ) : (
-              <StarBorderIcon fontSize="large" />
+              <StarBorderIcon sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
             )}
             {star2Display ? (
-              <StarIcon color="warning" fontSize="large" />
+              <StarIcon color="warning" sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
             ) : (
-              <StarBorderIcon fontSize="large" />
+              <StarBorderIcon sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
             )}
             {star3Display ? (
-              <StarIcon color="warning" fontSize="large" />
+              <StarIcon color="warning" sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
             ) : (
-              <StarBorderIcon fontSize="large" />
+              <StarBorderIcon sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
             )}
           </Box>
           {/* Hidden Achievement Section */}
-          <Box sx={{ mt: 2, textAlign: "center" }}>
+          <Box sx={{ mt: { xs: 1, md: 2 }, textAlign: "center" }}>
             {hiddenAchvAchieved && hiddenAchvDetails ? (
-              <Box sx={{ textAlign: "center", mb: 2 }}>
-                <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
+              <Box sx={{ textAlign: "center", mb: { xs: 1, md: 2 } }}>
+                <Typography variant="body2" sx={{ fontWeight: "bold", mb: { xs: 0.5, md: 1 }, fontSize: { xs: "0.75rem", md: "0.875rem" } }}>
                   Hidden Achievement Earned
                 </Typography>
                 <Box
                   component="img"
                   src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/achivements/${hiddenAchvDetails.image}`}
                   alt={hiddenAchvDetails.name}
-                  sx={{ maxWidth: "100px", mb: 1, borderRadius: "8px" }}
+                  sx={{ maxWidth: { xs: "80px", md: "100px" }, mb: { xs: 0.5, md: 1 }, borderRadius: "8px" }}
                 />
-                <Typography variant="h6">{hiddenAchvDetails.name}</Typography>
-                <Typography variant="body2">
+                <Typography variant="h6" sx={{ fontSize: { xs: "1rem", md: "1.25rem" } }}>{hiddenAchvDetails.name}</Typography>
+                <Typography variant="body2" sx={{ fontSize: { xs: "0.75rem", md: "0.875rem" } }}>
                   Condition: {hiddenAchvDetails.description}
                 </Typography>
               </Box>
             ) : (
               <Box
                 sx={{
-                  mt: 2,
+                  mt: { xs: 1, md: 2 },
                   textAlign: "center",
                   display: "flex",
                   alignItems: "center",
@@ -819,48 +832,48 @@ const TrialPage = () => {
                   gap: 1,
                 }}
               >
-                <HelpTwoToneIcon color="disabled" />
-                <Typography variant="body1" color="text.secondary">
+                <HelpTwoToneIcon color="disabled" sx={{ fontSize: { xs: "1rem", md: "1.5rem" } }} />
+                <Typography variant="body1" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", md: "0.875rem" } }}>
                   Secret Achievement Remains Locked
                 </Typography>
               </Box>
             )}
           </Box>
           {/* Gained EXP Section */}
-          <Box sx={{ mt: 2, textAlign: "center" }}>
-            <Typography variant="h6" sx={{ color: "green" }}>
+          <Box sx={{ mt: { xs: 1, md: 2 }, textAlign: "center" }}>
+            <Typography variant="h6" sx={{ color: "green", fontSize: { xs: "1rem", md: "1.25rem" } }}>
               Gained Exp: +{gainedExp}
             </Typography>
           </Box>
           {attemptMessage && (
-            <Box sx={{ mt: 2, textAlign: "center" }}>
-              <Typography variant="body1" color="secondary">
+            <Box sx={{ mt: { xs: 1, md: 2 }, textAlign: "center" }}>
+              <Typography variant="body1" color="secondary" sx={{ fontSize: { xs: "0.75rem", md: "0.875rem" } }}>
                 {attemptMessage}
               </Typography>
             </Box>
           )}
           {/* Display penalty warning if the user switched tabs */}
           {tabSwitched && (
-            <Box sx={{ mt: 2, textAlign: "center" }}>
-              <Typography variant="body2" sx={{ color: "red", fontWeight: "bold" }}>
+            <Box sx={{ mt: { xs: 1, md: 2 }, textAlign: "center" }}>
+              <Typography variant="body2" sx={{ color: "red", fontWeight: "bold", fontSize: { xs: "0.75rem", md: "0.875rem" } }}>
                 You can't switch tabs during trial – please try not to cheat (-20% score)
               </Typography>
             </Box>
           )}
-          <Box sx={{ mt: 3 }}>
-            <Typography variant="body2" align="center">
+          <Box sx={{ mt: { xs: 1, md: 2 } }}>
+            <Typography variant="body2" align="center" sx={{ fontSize: { xs: "0.65rem", md: "0.875rem" } }}>
               * First Star: Awarded for completing the trial.
             </Typography>
-            <Typography variant="body2" align="center">
+            <Typography variant="body2" align="center" sx={{ fontSize: { xs: "0.65rem", md: "0.875rem" } }}>
               * Second Star: Awarded if your score is at least 70% of the total score and you have earned the first star.
             </Typography>
-            <Typography variant="body2" align="center">
+            <Typography variant="body2" align="center" sx={{ fontSize: { xs: "0.65rem", md: "0.875rem" } }}>
               * Third Star: Awarded if you finish with at least 35% of the time remaining and you have earned the second star.
             </Typography>
           </Box>
         </DialogContent>
-        <DialogActions sx={{ justifyContent: "center", pb: 2 }}>
-          <Button onClick={handleDialogClose} variant="contained" color="primary" sx={{ px: 4, py: 1 }}>
+        <DialogActions sx={{ justifyContent: "center", pb: { xs: 1, md: 2 } }}>
+          <Button onClick={handleDialogClose} variant="contained" color="primary" sx={{ px: { xs: 2, md: 4 }, py: { xs: 1, md: 1 }, fontSize: { xs: "0.75rem", md: "1rem" } }}>
             Close
           </Button>
         </DialogActions>
