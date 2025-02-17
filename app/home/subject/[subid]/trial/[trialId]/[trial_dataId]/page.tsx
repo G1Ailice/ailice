@@ -323,13 +323,14 @@ const TrialPage = () => {
     if (hasFinished) return;
     setHasFinished(true);
     setIsSubmitting(true);
-
+  
     const storedAnswers = JSON.parse(localStorage.getItem(userAnswersKey) || "{}");
-
+  
+    // Ensure that remainingTime is never undefined by defaulting to 0.
     const finalRemainingValue =
-      overrideRemaining !== undefined ? overrideRemaining : remainingTime;
+      overrideRemaining !== undefined ? overrideRemaining : (remainingTime || 0);
     setRemainingTime(finalRemainingValue);
-
+  
     let totalPoints = 0;
     for (const question of questions) {
       const userAnswer = storedAnswers[question.id];
@@ -365,21 +366,21 @@ const TrialPage = () => {
         },
       ]);
     }
-
+  
     if (tabSwitched) {
       totalPoints = Math.floor(totalPoints * 0.8);
     }
-
+  
     const star1 = true;
     const star2 = star1 && (allScore > 0 ? totalPoints / allScore >= 0.7 : false);
     const star3 =
-      star2 && (allocatedTime > 0 ? remainingTime / allocatedTime >= 0.35 : false);
+      star2 && (allocatedTime > 0 ? finalRemainingValue / allocatedTime >= 0.35 : false);
     const starCount = 1 + (star2 ? 1 : 0) + (star3 ? 1 : 0);
-
+  
     const rawEval =
-      (((totalPoints / allScore) * 0.6) + ((remainingTime / allocatedTime) * 0.4)) * 100;
+      (((totalPoints / allScore) * 0.6) + ((finalRemainingValue / allocatedTime) * 0.4)) * 100;
     const newEval = Number(rawEval.toFixed(1));
-
+  
     await supabase
       .from("trial_data")
       .update({
@@ -390,20 +391,20 @@ const TrialPage = () => {
         eval_score: newEval.toString(),
       })
       .eq("id", trial_dataId);
-
+  
     const expGain = trialInfo.exp_gain ? Number(trialInfo.exp_gain) : 0;
     const gainedExpStars = (starCount / 3) * expGain;
-
+  
     const { count: attemptCount } = await supabase
       .from("trial_data")
       .select("id", { count: "exact", head: true })
       .eq("trial_id", trialId)
       .eq("user_id", userId);
-
+  
     const bonusExp =
       attemptCount === 1 && trialInfo.first_exp ? Number(trialInfo.first_exp) : 0;
     const totalExpGained = gainedExpStars + bonusExp;
-
+  
     const { data: userRecord } = await supabase
       .from("users")
       .select("exp")
@@ -412,16 +413,16 @@ const TrialPage = () => {
     const currentExp = userRecord && userRecord.exp ? Number(userRecord.exp) : 0;
     const newExp = currentExp + totalExpGained;
     await supabase.from("users").update({ exp: newExp }).eq("id", userId);
-
+  
     setGainedExp(totalExpGained);
-
+  
     let localAttemptMessage = "";
     const { data: allAttempts } = await supabase
       .from("trial_data")
       .select("id, eval_score")
       .eq("trial_id", trialId)
       .eq("user_id", userId);
-
+  
     if (allAttempts && allAttempts.length >= 2) {
       const attempts = allAttempts.map((att) => ({
         id: att.id,
@@ -435,7 +436,7 @@ const TrialPage = () => {
       }
       const lowerAttempts = attempts.filter((a) => a.eval < maxEval);
       attemptsToDelete = attemptsToDelete.concat(lowerAttempts);
-
+  
       for (const att of attemptsToDelete) {
         await supabase.from("q_data").delete().eq("t_dataid", att.id);
         await supabase.from("trial_data").delete().eq("id", att.id);
@@ -446,10 +447,11 @@ const TrialPage = () => {
     } else {
       localAttemptMessage = "Good job completing the trial";
     }
-
+  
     setFinalScore(totalPoints);
     setAttemptMessage(localAttemptMessage);
-
+  
+    // --- Hidden Achievement Condition Fix ---
     if (trialInfo.hd_achv_id) {
       const { data: existingAcv } = await supabase
         .from("user_acv")
@@ -473,7 +475,8 @@ const TrialPage = () => {
         let hiddenAchieved = false;
         try {
           const score = totalPoints;
-          const timeRemaining = remainingTime;
+          // Use remainingTime (or 0 if falsy) to ensure proper evaluation.
+          const effectiveTimeRemaining = finalRemainingValue || 0;
           const timeAllocated = allocatedTime;
           const allScoreVal = trialInfo.allscore;
           const { count: attemptCount } = await supabase
@@ -481,6 +484,9 @@ const TrialPage = () => {
             .select("id", { count: "exact", head: true })
             .eq("trial_id", trialId)
             .eq("user_id", userId);
+          // Ensure your hd_condition string in the database accounts for the possibility of timeRemaining being 0.
+          // For example, your condition could be:
+          // "(!timeRemaining || timeRemaining === 0) && score === 0"
           hiddenAchieved = Function(
             "score",
             "timeRemaining",
@@ -488,7 +494,7 @@ const TrialPage = () => {
             "allScoreVal",
             "attemptCount",
             "return " + trialInfo.hd_condition
-          )(score, timeRemaining, timeAllocated, allScoreVal, attemptCount);
+          )(score, effectiveTimeRemaining, timeAllocated, allScoreVal, attemptCount);
         } catch (e) {
           console.error("Error evaluating hidden achievement condition:", e);
         }
@@ -517,18 +523,19 @@ const TrialPage = () => {
         }
       }
     }
-
+    // --- End of Hidden Achievement Fix ---
+  
     localStorage.removeItem(questionOrderKey);
     localStorage.removeItem(userAnswersKey);
     localStorage.removeItem(currentIndexKey);
-
-    await new Promise((resolve) => setTimeout(resolve, 500));
-
+  
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+  
     setOpenDialog(true);
     setIsSubmitting(false);
-
+  
     triggerAction();
-  };
+  };  
 
   const triggerAction = () => {
     const event = new Event("childAction");

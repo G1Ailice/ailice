@@ -541,436 +541,445 @@ const LessonsPage = () => {
     finishedTrials.some((ft: any) => ft.trial_id === selectedTrial.id);
 
   return (
-<Container maxWidth="lg">
-  <Box mt={{ xs: 2, sm: 4 }}>
-    <Paper
-      elevation={8}
-      sx={{
-        p: { xs: 2, sm: 4 },
-        borderRadius: "16px",
-        background: "linear-gradient(135deg, #e0eafc, #cfdef3)",
-        boxShadow: "0px 6px 24px rgba(0, 0, 0, 0.15)",
-      }}
-    >
-      <Typography
-        variant="h4"
-        align="center"
-        sx={{ fontWeight: 700, mb: { xs: 2, sm: 4 }, color: "#333" }}
-      >
-        {subjectName}
-      </Typography>
-      {Object.entries(groupedLessonsByQuarter).length > 0 ? (
-        Object.entries(groupedLessonsByQuarter)
-          .sort((a, b) => a[0].localeCompare(b[0]))
-          .map(([quarter, lessonsInQuarter]) => {
-            // Sort lessons in quarter by lesson_no (numerically)
-            const sortedLessonsInQuarter = (lessonsInQuarter as any[]).sort(
-              (a, b) => parseFloat(a.lesson_no) - parseFloat(b.lesson_no)
-            );
-            // Group them by the whole-number portion of lesson_no
-            const groupedByLessonNo = sortedLessonsInQuarter.reduce(
-              (acc: Record<string, any[]>, lesson: any) => {
-                const lessonNum = parseFloat(lesson.lesson_no);
-                const groupKey = isNaN(lessonNum)
-                  ? "0"
-                  : Math.floor(lessonNum).toString();
-                if (!acc[groupKey]) acc[groupKey] = [];
-                acc[groupKey].push(lesson);
-                return acc;
-              },
-              {} as Record<string, any[]>
-            );
-
-            return (
-              <Box key={quarter} sx={{ mb: 4 }}>
-                <Typography variant="h5" sx={{ mb: 2, color: "#555" }}>
-                  Quarter {quarter}
-                </Typography>
-                {Object.entries(groupedByLessonNo)
-                  .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
-                  .map(([groupKey, lessonsGroup]) => (
-                    <Box key={`${quarter}-${groupKey}`} sx={{ mb: 2 }}>
-                      <Box
-                        display="flex"
-                        flexWrap="wrap"
-                        alignItems="center"
-                        gap={{ xs: 1, sm: 2 }}
-                      >
-                        {lessonsGroup.map((lesson: any) => {
-                          const isFinal = lesson.status === "Final";
-                          const unlocked = unlockedLessons[lesson.id];
-                          const isDecimal = !Number.isInteger(Number(lesson.lesson_no));
-                          const displayLessonNo = isFinal
-                            ? Math.floor(Number(lesson.lesson_no))
-                            : lesson.lesson_no;
-                          const buttonLabel = isFinal
-                            ? `Lesson ${displayLessonNo} Final`
-                            : `Lesson ${lesson.lesson_no}`;
-                          return (
-                            <Button
-                              key={lesson.id}
-                              disabled={
-                                isProcessing ||
-                                ((lesson.status === "Locked" || isFinal) && !unlocked)
-                              }
-                              sx={{
-                                p: isDecimal ? { xs: 0.5, sm: 1 } : { xs: 1, sm: 1.5 },
-                                backgroundColor:
-                                  (lesson.status === "Locked" || isFinal) && !unlocked
-                                    ? "#ccc"
-                                    : isFinal
-                                    ? "#d32f2f"
-                                    : "#1976d2",
-                                color: "#fff",
-                                textTransform: "none",
-                                borderRadius: "8px",
-                                boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
-                                transition: "transform 0.3s, box-shadow 0.3s",
-                                "&:hover": {
-                                  transform: "scale(1.03)",
-                                  boxShadow: "0px 4px 8px rgba(0,0,0,0.3)",
-                                  backgroundColor:
-                                    ((lesson.status === "Locked" || isFinal) && !unlocked)
-                                      ? "#ccc"
-                                      : isFinal
-                                      ? "#c62828"
-                                      : "#1565c0",
-                                },
-                              }}
-                              onClick={() => handleLessonClick(lesson)}
-                            >
-                              <AssignmentIcon
-                                sx={{
-                                  mr: isDecimal ? { xs: 0.5, sm: 0.5 } : { xs: 0.5, sm: 1 },
-                                }}
-                              />
-                              <Typography
-                                variant={isDecimal ? "subtitle2" : "h6"}
-                                sx={{
-                                  fontSize: {
-                                    xs: isDecimal ? "0.7rem" : "0.9rem",
-                                    sm: isDecimal ? "0.85rem" : "1rem",
-                                  },
-                                }}
-                              >
-                                {buttonLabel}
-                              </Typography>
-                            </Button>
-                          );
-                        })}
-                      </Box>
-                      <Divider sx={{ mt: 1, borderColor: "rgba(0,0,0,0.1)" }} />
-                    </Box>
-                  ))}
-              </Box>
-            );
-          })
-      ) : (
-        <Typography align="center" sx={{ color: "#777", mt: { xs: 2, sm: 4 } }}>
-          No lessons found for this subject.
-        </Typography>
-      )}
-    </Paper>
-  </Box>
-  {/* Lesson Dialog with Transition */}
-  <Dialog
-    open={dialogOpen}
-    onClose={closeDialog}
-    maxWidth="sm"
-    fullWidth
-    TransitionComponent={Transition}
-    PaperProps={{
-      sx: {
-        borderRadius: "16px",
-        boxShadow: "0px 4px 20px rgba(0,0,0,0.2)",
-        overflow: "hidden",
-      },
-    }}
-  >
-    <DialogTitle
-      sx={{
-        background:
-          selectedLesson?.status === "Final"
-            ? "linear-gradient(135deg, #f44336, #d32f2f)"
-            : "linear-gradient(135deg, #1976d2, #1565c0)",
-        color: "white",
-        p: 2,
-        textAlign: "center",
-        fontWeight: "bold",
-        position: "relative",
-      }}
-    >
-      {selectedLesson?.status === "Final"
-        ? `Lesson ${Math.floor(Number(selectedLesson.lesson_no))} Final`
-        : selectedLesson?.lesson_title}
-      {/* Ranking Icon Button positioned in the top-right */}
-      {selectedTrial && (
-        <IconButton
-          onClick={fetchRankingData}
+    <Container maxWidth="lg">
+      <Box mt={{ xs: 2, sm: 4 }}>
+        <Paper
+          elevation={8}
           sx={{
-            color: "white",
-            position: "absolute",
-            right: 8,
-            top: 8,
+            p: { xs: 2, sm: 4 },
+            borderRadius: "16px",
+            background: "linear-gradient(135deg, #e0eafc, #cfdef3)",
+            boxShadow: "0px 6px 24px rgba(0, 0, 0, 0.15)",
           }}
         >
-          <EmojiEventsRoundedIcon />
-        </IconButton>
-      )}
-    </DialogTitle>
-    <DialogContent dividers sx={{ p: 3 }}>
-      <Typography variant="body1" sx={{ mb: 2, color: "text.secondary" }}>
-        {selectedLesson?.description || "No description available."}
-      </Typography>
-      <Typography
-        variant="body2"
-        sx={{ color: "red", fontWeight: "bold", mb: 2, textAlign: "center" }}
-      >
-        Warning: Do not switch tabs during trial to avoid penalties!
-      </Typography>
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: isMobile ? "column" : "row",
-          justifyContent: "space-around",
-          alignItems: "center",
-          my: 2,
-        }}
-      >
-        {selectedTrial && selectedTrial.hd_achv_id && hiddenAchvDetails && (
-          <Box sx={{ textAlign: "center", mb: isMobile ? 2 : 0 }}>
-            {hiddenAchvUnlocked ? (
-              <>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  Hidden Achievement Unlocked
-                </Typography>
-                <Tooltip title={hiddenAchvDetails.name}>
-                  <Box
-                    component="img"
-                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/achivements/${hiddenAchvDetails.image}`}
-                    alt={hiddenAchvDetails.name}
-                    sx={{ width: 80, height: 80, borderRadius: 2, mx: "auto" }}
-                  />
-                </Tooltip>
-              </>
-            ) : (
-              <Tooltip title="Hidden Achievement Locked">
-                <HelpTwoToneIcon color="disabled" sx={{ fontSize: 80 }} />
-              </Tooltip>
-            )}
-          </Box>
-        )}
-        <Box sx={{ textAlign: "center" }}>
-          <Typography variant="caption" sx={{ mb: 0.5 }}>
-            Trial Attempt Rating:
+          <Typography
+            variant="h4"
+            align="center"
+            sx={{ fontWeight: 700, mb: { xs: 2, sm: 4 }, color: "#333" }}
+          >
+            {subjectName}
           </Typography>
-          {attempted ? (
-            <Box display="flex" justifyContent="center">
-              {[0, 1, 2].map((i) => (
-                <StarIcon key={i} sx={{ color: i < starRating ? "gold" : "gray", mx: 1 }} />
-              ))}
-            </Box>
+          {Object.entries(groupedLessonsByQuarter).length > 0 ? (
+            Object.entries(groupedLessonsByQuarter)
+              .sort((a, b) => a[0].localeCompare(b[0]))
+              .map(([quarter, lessonsInQuarter]) => {
+                // Sort lessons in quarter by lesson_no (numerically)
+                const sortedLessonsInQuarter = (lessonsInQuarter as any[]).sort(
+                  (a, b) => parseFloat(a.lesson_no) - parseFloat(b.lesson_no)
+                );
+                // Group them by the whole-number portion of lesson_no
+                const groupedByLessonNo = sortedLessonsInQuarter.reduce(
+                  (acc: Record<string, any[]>, lesson: any) => {
+                    const lessonNum = parseFloat(lesson.lesson_no);
+                    const groupKey = isNaN(lessonNum)
+                      ? "0"
+                      : Math.floor(lessonNum).toString();
+                    if (!acc[groupKey]) acc[groupKey] = [];
+                    acc[groupKey].push(lesson);
+                    return acc;
+                  },
+                  {} as Record<string, any[]>
+                );
+
+                return (
+                  <Box key={quarter} sx={{ mb: 4 }}>
+                    <Typography variant="h5" sx={{ mb: 2, color: "#555" }}>
+                      Quarter {quarter}
+                    </Typography>
+                    {Object.entries(groupedByLessonNo)
+                      .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
+                      .map(([groupKey, lessonsGroup]) => (
+                        <Box key={`${quarter}-${groupKey}`} sx={{ mb: 2 }}>
+                          <Box
+                            display="flex"
+                            flexWrap="wrap"
+                            alignItems="center"
+                            gap={{ xs: 1, sm: 2 }}
+                          >
+                            {lessonsGroup.map((lesson: any) => {
+                              const isFinal = lesson.status === "Final";
+                              const unlocked = unlockedLessons[lesson.id];
+                              const isDecimal = !Number.isInteger(Number(lesson.lesson_no));
+                              const displayLessonNo = isFinal
+                                ? Math.floor(Number(lesson.lesson_no))
+                                : lesson.lesson_no;
+                              const buttonLabel = isFinal
+                                ? `Lesson ${displayLessonNo} Final`
+                                : `Lesson ${lesson.lesson_no}`;
+                              return (
+                                <Button
+                                  key={lesson.id}
+                                  disabled={
+                                    isProcessing ||
+                                    ((lesson.status === "Locked" || isFinal) && !unlocked)
+                                  }
+                                  sx={{
+                                    p: isDecimal ? { xs: 0.5, sm: 1 } : { xs: 1, sm: 1.5 },
+                                    backgroundColor:
+                                      (lesson.status === "Locked" || isFinal) && !unlocked
+                                        ? "#ccc"
+                                        : isFinal
+                                        ? "#d32f2f"
+                                        : "#1976d2",
+                                    color: "#fff",
+                                    textTransform: "none",
+                                    borderRadius: "8px",
+                                    boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
+                                    transition: "transform 0.3s, box-shadow 0.3s",
+                                    "&:hover": {
+                                      transform: "scale(1.03)",
+                                      boxShadow: "0px 4px 8px rgba(0,0,0,0.3)",
+                                      backgroundColor:
+                                        ((lesson.status === "Locked" || isFinal) && !unlocked)
+                                          ? "#ccc"
+                                          : isFinal
+                                          ? "#c62828"
+                                          : "#1565c0",
+                                    },
+                                  }}
+                                  onClick={() => handleLessonClick(lesson)}
+                                >
+                                  <AssignmentIcon
+                                    sx={{
+                                      mr: isDecimal ? { xs: 0.5, sm: 0.5 } : { xs: 0.5, sm: 1 },
+                                    }}
+                                  />
+                                  <Typography
+                                    variant={isDecimal ? "subtitle2" : "h6"}
+                                    sx={{
+                                      fontSize: {
+                                        xs: isDecimal ? "0.7rem" : "0.9rem",
+                                        sm: isDecimal ? "0.85rem" : "1rem",
+                                      },
+                                    }}
+                                  >
+                                    {buttonLabel}
+                                  </Typography>
+                                </Button>
+                              );
+                            })}
+                          </Box>
+                          <Divider sx={{ mt: 1, borderColor: "rgba(0,0,0,0.1)" }} />
+                        </Box>
+                      ))}
+                  </Box>
+                );
+              })
           ) : (
-            <Typography variant="caption" sx={{ mb: 0.5 }}>
-              Not Yet Attempted
+            <Typography align="center" sx={{ color: "#777", mt: { xs: 2, sm: 4 } }}>
+              No lessons found for this subject.
             </Typography>
           )}
-          {selectedTrial && attempted && (
-            <Box mt={0.5} textAlign="center">
-              <Typography sx={{ fontSize: isMobile ? "0.6rem" : "0.75rem" }}>
-                Score: {trialScore}/{selectedTrial.allscore}
-              </Typography>
-              <Typography sx={{ fontSize: isMobile ? "0.6rem" : "0.75rem" }}>
-                Remaining Time: {formatTime(timeConcluded)}/{formatTime(selectedTrial.time)}
-              </Typography>
-            </Box>
-          )}
-        </Box>
+        </Paper>
       </Box>
-    </DialogContent>
-    <DialogActions
-      sx={{
-        justifyContent: "space-between",
-        alignItems: "center",
-        p: 2,
-      }}
-    >
-      <Button onClick={closeDialog} sx={{ color: "error.main" }} disabled={isProcessing}>
-        Close
-      </Button>
-      <Box display="flex" flexDirection="row" gap={2}>
-        {selectedLesson?.status !== "Final" && (
-          <Button
-            disabled={isProcessing}
-            sx={{
-              p: 1,
-              backgroundColor: "primary.main",
-              color: "primary.contrastText",
-              textTransform: "none",
-              borderRadius: "8px",
-              "&:hover": { backgroundColor: "primary.dark" },
-            }}
-            onClick={handleLessonRedirect}
+      {/* Lesson Dialog with Transition */}
+      <Dialog
+        open={dialogOpen}
+        onClose={closeDialog}
+        maxWidth="sm"
+        fullWidth
+        TransitionComponent={Transition}
+        PaperProps={{
+          sx: {
+            borderRadius: "16px",
+            boxShadow: "0px 4px 20px rgba(0,0,0,0.2)",
+            overflow: "hidden",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            background:
+              selectedLesson?.status === "Final"
+                ? "linear-gradient(135deg, #f44336, #d32f2f)"
+                : "linear-gradient(135deg, #1976d2, #1565c0)",
+            color: "white",
+            p: 2,
+            textAlign: "center",
+            fontWeight: "bold",
+            position: "relative",
+          }}
+        >
+          {selectedLesson?.status === "Final"
+            ? `Lesson ${Math.floor(Number(selectedLesson.lesson_no))} Final`
+            : selectedLesson?.lesson_title}
+          {/* Ranking Icon Button positioned in the top-right */}
+          {selectedTrial && (
+            <IconButton
+              onClick={fetchRankingData}
+              sx={{
+                color: "white",
+                position: "absolute",
+                right: 8,
+                top: 8,
+              }}
+            >
+              <EmojiEventsRoundedIcon />
+            </IconButton>
+          )}
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 3 }}>
+          <Typography variant="body1" sx={{ mb: 2, color: "text.secondary" }}>
+            {selectedLesson?.description || "No description available."}
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ color: "red", fontWeight: "bold", mb: 2, textAlign: "center" }}
           >
-            Go to Lesson
-          </Button>
-        )}
-        {selectedTrial && (
-          <>
-            {ongoingTrial ? (
-              ongoingTrial.trial_id === selectedTrial.id ? (
-                <Button
-                  disabled={isProcessing}
-                  sx={{
-                    p: 1,
-                    backgroundColor: "orange",
-                    color: "#fff",
-                    textTransform: "none",
-                    borderRadius: "8px",
-                    "&:hover": { backgroundColor: "#cc7000" },
-                  }}
-                  onClick={resumeTrial}
-                >
-                  <PlayArrowIcon sx={{ mr: 1 }} />
-                  Resume
-                </Button>
+            Warning: Do not switch tabs during trial to avoid penalties!
+          </Typography>
+          <Typography
+            variant="body2"
+            sx={{ textAlign: "center" }}
+          >
+            {selectedTrial?.qcount} Questions
+          </Typography>
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: isMobile ? "column" : "row",
+              justifyContent: "space-around",
+              alignItems: "center",
+              my: 2,
+            }}
+          >
+            {selectedTrial && selectedTrial.hd_achv_id && hiddenAchvDetails && (
+              <Box sx={{ textAlign: "center", mb: isMobile ? 2 : 0 }}>
+                {hiddenAchvUnlocked ? (
+                  <>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                      Hidden Achievement Unlocked
+                    </Typography>
+                    <Tooltip title={hiddenAchvDetails.name}>
+                      <Box
+                        component="img"
+                        src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/achivements/${hiddenAchvDetails.image}`}
+                        alt={hiddenAchvDetails.name}
+                        sx={{ width: 80, height: 80, borderRadius: 2, mx: "auto" }}
+                      />
+                    </Tooltip>
+                  </>
+                ) : (
+                  <Tooltip title="Hidden Achievement Locked">
+                    <HelpTwoToneIcon color="disabled" sx={{ fontSize: 80 }} />
+                  </Tooltip>
+                )}
+              </Box>
+            )}
+            <Box sx={{ textAlign: "center" }}>
+              <Typography variant="caption" sx={{ mb: 0.5 }}>
+              </Typography>
+              {attempted ? (
+                <Box display="flex" flexDirection="column" alignItems="center">
+                  <Typography variant="body2" sx={{ mb: 0.5 }}>
+                    Trial Star Rating:
+                  </Typography>
+                  <Box>
+                    {[0, 1, 2].map((i) => (
+                      <StarIcon key={i} sx={{ color: i < starRating ? "gold" : "gray", mx: 0.5 }} />
+                    ))}
+                  </Box>
+                </Box>
               ) : (
-                <Button
-                  disabled
-                  sx={{
-                    p: 1,
-                    backgroundColor: "grey",
-                    color: "#fff",
-                    textTransform: "none",
-                    borderRadius: "8px",
-                  }}
-                >
-                  <PlayArrowIcon sx={{ mr: 1 }} />
-                  Another trial is in progress
-                </Button>
-              )
-            ) : finishedTrialExists ? (
+                <Typography variant="caption" sx={{ mb: 0.5 }}>
+                  Not Yet Attempted
+                </Typography>
+              )}
+              {selectedTrial && attempted && (
+                <Box mt={0.5} textAlign="center">
+                  <Typography sx={{ fontSize: isMobile ? "0.6rem" : "0.75rem" }}>
+                    Score: {trialScore}/{selectedTrial.allscore}
+                  </Typography>
+                  <Typography sx={{ fontSize: isMobile ? "0.6rem" : "0.75rem" }}>
+                    Remaining Time: {formatTime(timeConcluded)}/{formatTime(selectedTrial.time)}
+                  </Typography>
+                </Box>
+              )}
+            </Box>
+          </Box>
+        </DialogContent>
+        <DialogActions
+          sx={{
+            justifyContent: "space-between",
+            alignItems: "center",
+            p: 2,
+          }}
+        >
+          <Button onClick={closeDialog} sx={{ color: "error.main" }} disabled={isProcessing}>
+            Close
+          </Button>
+          <Box display="flex" flexDirection="row" gap={2}>
+            {selectedLesson?.status !== "Final" && (
               <Button
                 disabled={isProcessing}
                 sx={{
                   p: 1,
-                  backgroundColor: "error.main",
-                  color: "error.contrastText",
+                  backgroundColor: "primary.main",
+                  color: "primary.contrastText",
                   textTransform: "none",
                   borderRadius: "8px",
-                  "&:hover": { backgroundColor: "error.dark" },
+                  "&:hover": { backgroundColor: "primary.dark" },
                 }}
-                onClick={() => startTrial(selectedTrial.id)}
+                onClick={handleLessonRedirect}
               >
-                <PlayArrowIcon sx={{ mr: 1 }} />
-                Retry
-              </Button>
-            ) : (
-              <Button
-                disabled={isProcessing}
-                sx={{
-                  p: 1,
-                  backgroundColor: "success.main",
-                  color: "success.contrastText",
-                  textTransform: "none",
-                  borderRadius: "8px",
-                  "&:hover": { backgroundColor: "success.dark" },
-                }}
-                onClick={() => startTrial(selectedTrial.id)}
-              >
-                <PlayArrowIcon sx={{ mr: 1 }} />
-                {selectedTrial.trial_title}
+                Go to Lesson
               </Button>
             )}
-          </>
-        )}
-      </Box>
-    </DialogActions>
-  </Dialog>
-  {/* Ranking Dialog with Transition */}
-  <Dialog
-    open={openRankingDialog}
-    onClose={() => setOpenRankingDialog(false)}
-    maxWidth="sm"
-    fullWidth
-    TransitionComponent={Transition}
-    PaperProps={{
-      sx: {
-        borderRadius: "16px",
-        boxShadow: "0px 4px 20px rgba(0,0,0,0.2)",
-        overflow: "hidden",
-      },
-    }}
-  >
-    <DialogTitle
-      sx={{
-        backgroundColor: selectedLesson?.status === "Final" ? "#d32f2f" : "primary.main",
-        color: "white",
-        p: 2,
-        textAlign: "center",
-        fontWeight: "bold",
-      }}
-    >
-      Trial Ranking
-    </DialogTitle>
-    <DialogContent dividers sx={{ p: 3 }}>
-      {rankingData && rankingData.length > 0 ? (
-        rankingData.map((record, index) => {
-          const rank = index + 1;
-          const rankColor =
-            rank === 1
-              ? "gold"
-              : rank === 2
-              ? "silver"
-              : rank === 3
-              ? "#cd7f32"
-              : "blue";
-          return (
-            <Box key={record.user_id} display="flex" alignItems="center" gap={2} mb={1}>
-              <Box
-                sx={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: "50%",
-                  border: `2px solid ${rankColor}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: rankColor,
-                  fontWeight: "bold",
-                }}
-              >
-                {rank}
-              </Box>
-              <Avatar
-                onClick={() => router.push(`/home/user/${record.user_id}`)}
-                src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${record.profile_pic}`}
-                alt={record.username}
-                sx={{ cursor: "pointer" }}
-              />
-              <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
-                {record.username}
-              </Typography>
-              <Typography variant="subtitle1">
-                Rank Score: {record.eval_score}
-              </Typography>
-            </Box>
-          );
-        })
-      ) : (
-        <Typography variant="body1" align="center">
-          There's nothing here at the moment.
-        </Typography>
-      )}
-    </DialogContent>
-    <DialogActions sx={{ justifyContent: "center", p: 2 }}>
-      <Button onClick={() => setOpenRankingDialog(false)} color="primary">
-        Close
-      </Button>
-    </DialogActions>
-  </Dialog>
-</Container>
-
+            {selectedTrial && (
+              <>
+                {ongoingTrial ? (
+                  ongoingTrial.trial_id === selectedTrial.id ? (
+                    <Button
+                      disabled={isProcessing}
+                      sx={{
+                        p: 1,
+                        backgroundColor: "orange",
+                        color: "#fff",
+                        textTransform: "none",
+                        borderRadius: "8px",
+                        "&:hover": { backgroundColor: "#cc7000" },
+                      }}
+                      onClick={resumeTrial}
+                    >
+                      <PlayArrowIcon sx={{ mr: 1 }} />
+                      Resume
+                    </Button>
+                  ) : (
+                    <Button
+                      disabled
+                      sx={{
+                        p: 1,
+                        backgroundColor: "grey",
+                        color: "#fff",
+                        textTransform: "none",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      <PlayArrowIcon sx={{ mr: 1 }} />
+                      Another trial is in progress
+                    </Button>
+                  )
+                ) : finishedTrialExists ? (
+                  <Button
+                    disabled={isProcessing}
+                    sx={{
+                      p: 1,
+                      backgroundColor: "error.main",
+                      color: "error.contrastText",
+                      textTransform: "none",
+                      borderRadius: "8px",
+                      "&:hover": { backgroundColor: "error.dark" },
+                    }}
+                    onClick={() => startTrial(selectedTrial.id)}
+                  >
+                    <PlayArrowIcon sx={{ mr: 1 }} />
+                    Retry
+                  </Button>
+                ) : (
+                  <Button
+                    disabled={isProcessing}
+                    sx={{
+                      p: 1,
+                      backgroundColor: "success.main",
+                      color: "success.contrastText",
+                      textTransform: "none",
+                      borderRadius: "8px",
+                      "&:hover": { backgroundColor: "success.dark" },
+                    }}
+                    onClick={() => startTrial(selectedTrial.id)}
+                  >
+                    <PlayArrowIcon sx={{ mr: 1 }} />
+                    {selectedTrial.trial_title}
+                  </Button>
+                )}
+              </>
+            )}
+          </Box>
+        </DialogActions>
+      </Dialog>
+      {/* Ranking Dialog with Transition */}
+      <Dialog
+        open={openRankingDialog}
+        onClose={() => setOpenRankingDialog(false)}
+        maxWidth="sm"
+        fullWidth
+        TransitionComponent={Transition}
+        PaperProps={{
+          sx: {
+            borderRadius: "16px",
+            boxShadow: "0px 4px 20px rgba(0,0,0,0.2)",
+            overflow: "hidden",
+          },
+        }}
+      >
+        <DialogTitle
+          sx={{
+            backgroundColor: selectedLesson?.status === "Final" ? "#d32f2f" : "primary.main",
+            color: "white",
+            p: 2,
+            textAlign: "center",
+            fontWeight: "bold",
+          }}
+        >
+          Trial Ranking
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 3 }}>
+          {rankingData && rankingData.length > 0 ? (
+            rankingData.map((record, index) => {
+              const rank = index + 1;
+              const rankColor =
+                rank === 1
+                  ? "gold"
+                  : rank === 2
+                  ? "silver"
+                  : rank === 3
+                  ? "#cd7f32"
+                  : "blue";
+              return (
+                <Box key={record.user_id} display="flex" alignItems="center" gap={2} mb={1}>
+                  <Box
+                    sx={{
+                      width: 32,
+                      height: 32,
+                      borderRadius: "50%",
+                      border: `2px solid ${rankColor}`,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      color: rankColor,
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {rank}
+                  </Box>
+                  <Avatar
+                    onClick={() => router.push(`/home/user/${record.user_id}`)}
+                    src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${record.profile_pic}`}
+                    alt={record.username}
+                    sx={{ cursor: "pointer" }}
+                  />
+                  <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
+                    {record.username}
+                  </Typography>
+                  <Typography variant="subtitle1">
+                    Rank Score: {record.eval_score}/100
+                  </Typography>
+                </Box>
+              );
+            })
+          ) : (
+            <Typography variant="body1" align="center">
+              There's nothing here at the moment.
+            </Typography>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ justifyContent: "center", p: 2 }}>
+          <Button onClick={() => setOpenRankingDialog(false)} color="primary">
+            Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Container>
   );
 };
 
