@@ -281,11 +281,11 @@ const TrialPage = () => {
             .update({ status: "Finished", time_concluded: 0 })
             .eq("id", trial_dataId);
         })();
-        finishSubmission(0);
         if (timerRef.current) {
           clearInterval(timerRef.current);
           timerRef.current = null;
         }
+        finishSubmission(0);
       } else {
         setRemainingTime(remaining);
       }
@@ -315,7 +315,13 @@ const TrialPage = () => {
     setCurrentQuestionIndex((prev) => Math.min(prev + 1, questions.length - 1));
   };
 
+  const finishSubmissionCalledRef = useRef(false);
+
   const finishSubmission = async (overrideRemaining?: number) => {
+
+    if (finishSubmissionCalledRef.current) return;
+    finishSubmissionCalledRef.current = true;
+
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
