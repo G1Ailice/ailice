@@ -606,14 +606,18 @@ const LessonsPage = () => {
                               const buttonLabel = isFinal
                                 ? `Lesson ${displayLessonNo} Final`
                                 : `Lesson ${lesson.lesson_no}`;
+
+                              const isDisabled =
+                                isProcessing || ((lesson.status === "Locked" || isFinal) && !unlocked);
+                              // Determine if we should show the level requirement caption.
+                              const showLevelReq = isDisabled && lesson.level_req;
+
                               return (
                                 <Button
                                   key={lesson.id}
-                                  disabled={
-                                    isProcessing ||
-                                    ((lesson.status === "Locked" || isFinal) && !unlocked)
-                                  }
+                                  disabled={isDisabled}
                                   sx={{
+                                    position: "relative", // Enable absolute positioning within the button
                                     p: isDecimal ? { xs: 0.5, sm: 1 } : { xs: 1, sm: 1.5 },
                                     backgroundColor:
                                       (lesson.status === "Locked" || isFinal) && !unlocked
@@ -636,12 +640,31 @@ const LessonsPage = () => {
                                           ? "#c62828"
                                           : "#1565c0",
                                     },
+                                    alignItems: "center",
                                   }}
                                   onClick={() => handleLessonClick(lesson)}
                                 >
+                                  {showLevelReq && (
+                                    <Typography
+                                      variant="caption"
+                                      sx={{
+                                        position: "absolute",
+                                        top: "50%",
+                                        left: "50%",
+                                        transform: "translate(-50%, -50%)",
+                                        zIndex: 2,
+                                        textAlign: "center",
+                                        fontWeight: "bold",
+                                        color: "red",
+                                      }}
+                                    >
+                                      Level {lesson.level_req} Required
+                                    </Typography>
+                                  )}
                                   <AssignmentIcon
                                     sx={{
                                       mr: isDecimal ? { xs: 0.5, sm: 0.5 } : { xs: 0.5, sm: 1 },
+                                      zIndex: 1,
                                     }}
                                   />
                                   <Typography
@@ -651,11 +674,13 @@ const LessonsPage = () => {
                                         xs: isDecimal ? "0.7rem" : "0.9rem",
                                         sm: isDecimal ? "0.85rem" : "1rem",
                                       },
+                                      zIndex: 1,
                                     }}
                                   >
                                     {buttonLabel}
                                   </Typography>
                                 </Button>
+
                               );
                             })}
                           </Box>
