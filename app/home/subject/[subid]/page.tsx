@@ -655,7 +655,8 @@ const LessonsPage = () => {
                                         zIndex: 2,
                                         textAlign: "center",
                                         fontWeight: "bold",
-                                        color: "red",
+                                        color: "blue",
+                                        fontSize: "0.55rem",
                                       }}
                                     >
                                       Level {lesson.level_req} Required
