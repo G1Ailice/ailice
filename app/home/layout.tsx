@@ -452,6 +452,14 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
               </Typography>
               <Button
                 variant="contained"
+                color="secondary"
+                onClick={handleAccountSettings}
+                sx={{ marginBottom: '8px', width: '100%' }}
+              >
+                Account Settings
+              </Button>
+              <Button
+                variant="contained"
                 onClick={() =>
                   window.location.href =
                     "https://docs.google.com/forms/d/e/1FAIpQLScQUGdmUaG2TzA3NO-pKSHpftlCsgKMgtoaYswbjWtzZocqpA/viewform"
