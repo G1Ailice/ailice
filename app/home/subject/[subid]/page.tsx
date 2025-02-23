@@ -541,7 +541,12 @@ const LessonsPage = () => {
     finishedTrials.some((ft: any) => ft.trial_id === selectedTrial.id);
 
   return (
-    <Container maxWidth="lg">
+    <Container maxWidth="lg"
+      sx={{
+        py: -2,
+        minHeight: '70vh',
+      }}
+    >
       <Box mt={{ xs: 2, sm: 4 }}>
         <Paper
           elevation={8}
@@ -582,7 +587,41 @@ const LessonsPage = () => {
                 );
 
                 return (
-                  <Box key={quarter} sx={{ mb: 4 }}>
+                  <Box key={quarter} 
+                    sx={{
+                    overflowY: 'auto',
+                    maxHeight: '65vh',
+                    p: 0.5,
+                    textAlign: 'left',
+                    fontSize: { xs: '0.800rem', sm: '1rem' },
+                    lineHeight: { xs: 1.4, sm: 1.6 },
+                    '&::-webkit-scrollbar': { width: '10px' },
+                    '&::-webkit-scrollbar-thumb': {
+                      backgroundColor: 'primary.main',
+                      borderRadius: '4px',
+                      border: '2px solid #fff',
+                    },
+                    '&::-webkit-scrollbar-track': {
+                      backgroundColor: 'grey.300',
+                      borderRadius: '4px',
+                    },
+                    '@media (max-width:600px)': {
+                      p: 1,
+                      fontSize: '0.75rem',
+                    },
+                    '& table': {
+                      width: '100%',
+                      borderCollapse: 'collapse',
+                    },
+                    '& th, & td': {
+                      border: '1px solid #ddd',
+                      p: 1,
+                      textAlign: 'left',
+                    },
+                    '& th': {
+                      backgroundColor: 'grey.100',
+                    },
+                  }}>
                     <Typography variant="h5" sx={{ mb: 2, color: "#555" }}>
                       Quarter {quarter}
                     </Typography>
