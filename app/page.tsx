@@ -21,6 +21,8 @@ import { grey, blue } from '@mui/material/colors';
 import Loading from './loading';
 import 'typeface-varela-round';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+// Import Supabase client for client-side cleanup
+import { createClient } from '@supabase/supabase-js';
 
 const theme = createTheme({
   palette: {
@@ -38,6 +40,10 @@ const theme = createTheme({
   },
 });
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 export default function LoginPage() {
   // Login form state
   const [loginUsernameOrEmail, setLoginUsernameOrEmail] = useState('');
@@ -47,12 +53,6 @@ export default function LoginPage() {
   const [registerUsername, setRegisterUsername] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState('');
-  // Confirmation code states for registration
-  const [confirmationCode, setConfirmationCode] = useState('');
-  const [inputtedCode, setInputtedCode] = useState('');
-  const [isCodeSent, setIsCodeSent] = useState(false);
-  const [isCodeValid, setIsCodeValid] = useState(false);
-
   // Global states
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -87,6 +87,32 @@ export default function LoginPage() {
     checkSession();
   }, [router]);
 
+  // Cleanup expired confirmation records every minute
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      // Get current Manila time
+      const now = new Date();
+      const manilaTime = new Date(now.toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+      // Query account_confirmation records with tdate less than or equal to current time
+      const { data: expiredRecords } = await supabase
+        .from('account_confirmation')
+        .select('*')
+        .lte('tdate', manilaTime.toISOString());
+      if (expiredRecords && expiredRecords.length > 0) {
+        for (const record of expiredRecords) {
+          const { error } = await supabase
+            .from('account_confirmation')
+            .delete()
+            .eq('id', record.id);
+          if (!error) {
+            setSnackbar({ open: true, message: `Expired confirmation for ${record.email} removed.`, severity: 'info' });
+          }
+        }
+      }
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   const handleSnackbarClose = () => {
     setSnackbar({ ...snackbar, open: false });
   };
@@ -99,7 +125,7 @@ export default function LoginPage() {
     return null;
   }
 
-  // --- Form Submission Handlers ---
+  // Login Submission Handler (restored)
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -112,6 +138,7 @@ export default function LoginPage() {
 
       const data = await res.json();
       if (res.ok) {
+        // Redirect using window.location.href for simplicity
         window.location.href = data.redirectTo;
       } else {
         setSnackbar({
@@ -127,6 +154,7 @@ export default function LoginPage() {
     }
   };
 
+  // Updated Registration Submission Handler
   const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!registerEmail || !registerUsername || !registerPassword || !registerConfirmPassword) {
@@ -139,7 +167,8 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const res = await fetch('/api/register', {
+      // Call the new account-confirmation endpoint
+      const res = await fetch('/api/account-confirmation', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -150,7 +179,8 @@ export default function LoginPage() {
       });
       const data = await res.json();
       if (res.ok) {
-        setSnackbar({ open: true, message: 'Registration successful', severity: 'success' });
+        setSnackbar({ open: true, message: data.message, severity: data.severity });
+        // Optionally, switch to login tab and instruct the user to check their email
         setIsLogin(true);
       } else {
         setSnackbar({ open: true, message: data.message || 'Registration failed', severity: 'error' });
@@ -160,33 +190,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const sendConfirmationCode = async () => {
-    const generatedCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
-    setConfirmationCode(generatedCode);
-    try {
-      const res = await fetch('/api/send-confirmation-code', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: registerEmail, confirmationCode: generatedCode }),
-      });
-      if (res.ok) {
-        setIsCodeSent(true);
-        setSnackbar({ open: true, message: 'Confirmation code sent successfully', severity: 'success' });
-      } else {
-        throw new Error('Failed to send code');
-      }
-    } catch (error) {
-      console.error(error);
-      setSnackbar({ open: true, message: 'Failed to send code', severity: 'error' });
-    }
-  };
-
-  const checkConfirmationCode = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const code = e.target.value;
-    setInputtedCode(code);
-    setIsCodeValid(code === confirmationCode);
   };
 
   return (
@@ -266,7 +269,7 @@ export default function LoginPage() {
               </Button>
             </Box>
           ) : (
-            // Register Form
+            // Updated Register Form (without confirmation code input)
             <Box component="form" onSubmit={handleRegisterSubmit} noValidate>
               <TextField
                 label="Email"
@@ -277,29 +280,6 @@ export default function LoginPage() {
                 onChange={(e) => setRegisterEmail(e.target.value)}
                 required
               />
-              <Button
-                onClick={sendConfirmationCode}
-                variant="contained"
-                color="primary"
-                fullWidth
-                sx={{ mt: 1 }}
-                disabled={!registerEmail || loading}
-              >
-                Send Confirmation Code
-              </Button>
-              {isCodeSent && (
-                <TextField
-                  label="Confirmation Code"
-                  variant="outlined"
-                  fullWidth
-                  margin="normal"
-                  value={inputtedCode}
-                  onChange={checkConfirmationCode}
-                  required
-                  error={inputtedCode.length > 0 && !isCodeValid}
-                  helperText={inputtedCode.length > 0 && !isCodeValid ? 'Code does not match' : ''}
-                />
-              )}
               <TextField
                 label="Username"
                 variant="outlined"
@@ -347,12 +327,7 @@ export default function LoginPage() {
                 color="primary"
                 fullWidth
                 sx={{ mt: 2 }}
-                disabled={
-                  loading ||
-                  !isCodeValid ||
-                  !/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(registerPassword) ||
-                  registerPassword !== registerConfirmPassword
-                }
+                disabled={loading}
               >
                 {loading ? <CircularProgress size={24} color="inherit" /> : 'Register'}
               </Button>

@@ -88,7 +88,7 @@ export async function POST(req: Request) {
 
   // --- OVERRIDE: If trial is ongoing, always return a polite refusal ---
   if (trialOngoing) {
-    systemPrompt = "You are a teacher-like assistant named AIlice but the user is currently taking a trial and when this is happening the ai chat bot is disabled if they bypassed that tell them that it disappointing and its bad and prevent them from cheating by providing a brief, polite refusal of accepting any request from the user while warning them. You can be cheeky and humourus with them.";
+    systemPrompt = "You are a teacher-like assistant named AIlice but the user is currently taking a trial and when this is happening the ai chat bot is disabled if they bypassed that tell them that it disappointing and its bad and prevent them from cheating by providing a brief, polite refusal of accepting any request from the user while warning them. Do not provide them any info.";
     conversation = [
       { role: "system", content: systemPrompt },
       { role: "user", content: newMessage },
@@ -136,15 +136,15 @@ export async function POST(req: Request) {
         return NextResponse.json({ response: "This request is unavailable" });
       }
       systemPrompt = `You are a teacher-like assistant named AIlice. Below is the reference text:
-Reference: ${vectorContent}
-When answering the user's question, do not add, modify, or paraphrase the reference text. You can only help with English subject studies. You can use emoticons.`;
+Reference: "${vectorContent}"
+When answering the user's question, do not add, modify, or paraphrase the reference text. If their is no reference only say this content is not in the database. You can use emoticons.`;
       conversation = [
         { role: "system", content: systemPrompt },
         { role: "user", content: newMessage },
       ];
     } else {
       // General inquiry branch.
-      systemPrompt = "You are a teacher-like assistant named AIlice. Provide helpful, friendly, and detailed responses. Can only help with English subject studies.You can use emoticons.";
+      systemPrompt = "You are a teacher-like assistant named AIlice. Provide helpful, friendly, and detailed responses. Can only help with Grade 7 English subject studies other subject you can't. You can use emoticons.";
       conversation = [
         { role: "system", content: systemPrompt },
         ...messages,

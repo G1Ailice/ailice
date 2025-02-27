@@ -4,7 +4,8 @@ import React, { useEffect, useState } from "react";
 import { useRouter, useParams } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import { Container,Box, Paper, Typography, Button, Dialog, DialogTitle, DialogContent, DialogActions, useMediaQuery,
-  CircularProgress, IconButton,Avatar, Slide,Tooltip, Divider,} from "@mui/material";
+  CircularProgress, IconButton,Avatar, Slide,Tooltip, Divider, Table, TableBody,TableCell,TableContainer,TableHead,
+  TableRow,} from "@mui/material";
 import { TransitionProps } from "@mui/material/transitions";
 import AssignmentIcon from "@mui/icons-material/Assignment";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
@@ -989,55 +990,98 @@ const LessonsPage = () => {
           Trial Ranking
         </DialogTitle>
         <DialogContent dividers sx={{ p: 3 }}>
-          {rankingData && rankingData.length > 0 ? (
-            rankingData.map((record, index) => {
-              const rank = index + 1;
-              const rankColor =
-                rank === 1
-                  ? "gold"
-                  : rank === 2
-                  ? "silver"
-                  : rank === 3
-                  ? "#cd7f32"
-                  : "blue";
-              return (
-                <Box key={record.user_id} display="flex" alignItems="center" gap={2} mb={1}>
+  {rankingData && rankingData.length > 0 ? (
+    <TableContainer sx={{ overflowX: 'auto' }}>
+      <Table size="small">
+        <TableHead>
+          <TableRow>
+            <TableCell
+              align="center"
+              sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: 'inherit' } }}
+            >
+              Rank
+            </TableCell>
+            <TableCell
+              sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: 'inherit' } }}
+            >
+              Student
+            </TableCell>
+            <TableCell
+              align="right"
+              sx={{ fontWeight: 'bold', fontSize: { xs: '0.75rem', sm: 'inherit' } }}
+            >
+              Rank Score
+            </TableCell>
+          </TableRow>
+        </TableHead>
+        <TableBody>
+          {rankingData.map((record, index) => {
+            const rank = index + 1;
+            const rankColor =
+              rank === 1
+                ? 'gold'
+                : rank === 2
+                ? 'silver'
+                : rank === 3
+                ? '#cd7f32'
+                : 'blue';
+            const displayUsername =
+              record.username.length > 12
+                ? record.username.slice(0, 12) + '..'
+                : record.username;
+            return (
+              <TableRow key={record.user_id}>
+                <TableCell align="center">
                   <Box
                     sx={{
                       width: 32,
                       height: 32,
-                      borderRadius: "50%",
+                      borderRadius: '50%',
                       border: `2px solid ${rankColor}`,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       color: rankColor,
-                      fontWeight: "bold",
+                      fontWeight: 'bold',
+                      mx: 'auto',
+                      fontSize: { xs: '0.75rem', sm: 'inherit' },
                     }}
                   >
                     {rank}
                   </Box>
+                </TableCell>
+                <TableCell
+                  onClick={() => router.push(`/home/user/${record.user_id}`)}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    cursor: 'pointer',
+                    fontSize: { xs: '0.75rem', sm: 'inherit' },
+                  }}
+                >
                   <Avatar
-                    onClick={() => router.push(`/home/user/${record.user_id}`)}
                     src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${record.profile_pic}`}
                     alt={record.username}
-                    sx={{ cursor: "pointer" }}
+                    sx={{ mr: 1, width: 32, height: 32 }}
                   />
-                  <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
-                    {record.username}
-                  </Typography>
-                  <Typography variant="subtitle1">
-                    Rank Score: {record.eval_score}/100
-                  </Typography>
-                </Box>
-              );
-            })
-          ) : (
-            <Typography variant="body1" align="center">
-              There's nothing here at the moment.
-            </Typography>
-          )}
-        </DialogContent>
+                  {displayUsername}
+                </TableCell>
+                <TableCell align="right" sx={{ fontSize: { xs: '0.75rem', sm: 'inherit' } }}>
+                  {record.eval_score}
+                </TableCell>
+              </TableRow>
+            );
+          })}
+        </TableBody>
+      </Table>
+    </TableContainer>
+  ) : (
+    <Typography variant="body1" align="center">
+      There's nothing here at the moment.
+    </Typography>
+  )}
+</DialogContent>
+
         <DialogActions sx={{ justifyContent: "center", p: 2 }}>
           <Button onClick={() => setOpenRankingDialog(false)} color="primary">
             Close

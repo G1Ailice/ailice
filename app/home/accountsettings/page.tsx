@@ -192,6 +192,7 @@ export default function AccountSettings() {
     } catch (error) {
       setSnackbar({ open: true, message: 'Error updating profile picture', severity: 'error' });
     }
+    triggerAction();
   };
 
   const handleSaveUsername = async () => {
@@ -224,6 +225,7 @@ export default function AccountSettings() {
     setUserData((prev: any) => ({ ...prev, username: newUsername }));
     setIsEditingUsername(false);
     setSnackbar({ open: true, message: 'Username updated successfully!', severity: 'success' });
+    triggerAction();
   };
 
   const handleChangePassword = async () => {
@@ -259,6 +261,7 @@ export default function AccountSettings() {
       console.error(err);
       setSnackbar({ open: true, message: 'Error updating password', severity: 'error' });
     }
+    triggerAction();
   };
 
   // Handler for the Select-based visibility control.
@@ -281,12 +284,18 @@ export default function AccountSettings() {
     }
     setOpenVisibilityDialog(false);
     setPendingVisibility(null);
+    triggerAction();
   };
 
   const cancelVisibilityChange = () => {
     setPendingVisibility(null);
     setOpenVisibilityDialog(false);
-  };
+  }; 
+
+const triggerAction = () => {
+  const event = new Event("childAction");
+  document.dispatchEvent(event);
+};
 
   if (loading || visibility === '') {
     return (
@@ -383,7 +392,7 @@ export default function AccountSettings() {
                 opacity: 0,
                 transition: 'opacity 0.5s ease, transform 0.5s ease',
                 zIndex: 1,
-                '&:hover': { opacity: 30 },
+                '&:hover': { opacity: 50 },
               }}
               onClick={handleAvatarClick}
             >
@@ -412,7 +421,7 @@ export default function AccountSettings() {
                   {userData.username}
                 </Typography>
                 <IconButton onClick={() => setIsEditingUsername(true)} sx={{ p: 0 }}>
-                  <EditIcon sx={{ fontSize: '2.125rem' }} />
+                  <EditIcon sx={{ fontSize: '1.5rem' }} />
                 </IconButton>
               </>
             )}
@@ -422,7 +431,7 @@ export default function AccountSettings() {
           </Typography>
 
           {/* Visibility Select with current visibility text */}
-          <Box sx={{ mb: 2, width: '100%', display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Box sx={{ mb: 2, width: '100%', display: 'flex', alignItems: 'center', gap: 1 }}>
             <FormControl fullWidth>
               <InputLabel id="visibility-label">Visibility</InputLabel>
               <Select labelId="visibility-label" value={visibility} label="Visibility" onChange={handleSelectVisibility}>
