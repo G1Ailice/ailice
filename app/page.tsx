@@ -44,11 +44,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-export const metadata = {
-  title: 'Login and Register',
-  description: 'Login and Register Page for Ailice',
-};
-
 export default function LoginPage() {
   // Login form state
   const [loginUsernameOrEmail, setLoginUsernameOrEmail] = useState('');

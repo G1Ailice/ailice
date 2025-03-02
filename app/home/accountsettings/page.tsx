@@ -12,10 +12,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-export const metadata = {
-  title: 'Account Settings',
-  description: 'Account Settings Page for Ailice',
-};
 
 export default function AccountSettings() {
   const router = useRouter();

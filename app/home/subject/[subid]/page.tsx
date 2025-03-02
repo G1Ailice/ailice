@@ -38,11 +38,6 @@ const formatTime = (seconds: number) => {
   return `${hh}:${mm}:${ss}`;
 };
 
-export const metadata = {
-  title: 'Lessons',
-  description: 'Lessons Page for Ailice',
-};
-
 const LessonsPage = () => {
   const { subid } = useParams();
   const router = useRouter();
