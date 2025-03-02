@@ -76,6 +76,11 @@ const MemoizedQuestionContent = React.memo(({ qcontent }: { qcontent: string }) 
   );
 });
 
+export const metadata = {
+  title: 'Trial',
+  description: 'Trial Page for Ailice',
+};
+
 const TrialPage = () => {
   const router = useRouter();
   const { subid, trialId, trial_dataId } = useParams();

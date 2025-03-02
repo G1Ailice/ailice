@@ -11,6 +11,16 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
+// app/page.tsx
+  export const metadata = {
+    title: 'Ailice',
+    icons: {
+      icon: '/icons/ailice_192x192.png',
+    },
+    description: 'Ailice is a website where you can learn, challenge, and gain achievement each progress. Explore and interact with the AI chatbot if you get stuck on some lessons.',
+  };
+
+
 export default function Layout1({
   children,
 }: {
@@ -55,9 +65,6 @@ export default function Layout1({
         <link href="https://fonts.googleapis.com/css2?family=Varela+Round&display=swap" rel="stylesheet" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#000000" />
-        <meta name="description" content="Ailice is a website where you can learn, challenge, and gain achievement each progress. Explore and interact with the AI chatbot if you get stuck on some lessons." />
-        <title>Ailice</title>
-        <link rel="icon" href="/icons/ailice_192x192.png" type="image/png" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />

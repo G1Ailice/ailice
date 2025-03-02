@@ -32,6 +32,11 @@ interface LessonContent {
   content_type: string;
 }
 
+export const metadata = {
+  title: 'Lesson Content',
+  description: 'Lesson Content Page for Ailice',
+};
+
 export default function LessonDetailsTabs() {
   // Normalize lessonId to be a string or null.
   const params = useParams();

@@ -39,6 +39,12 @@ const fadeIn = keyframes`
   }
 `;
 
+export const metadata = {
+  title: 'Home',
+  description: 'Home Page for Ailice',
+};
+
+
 export default function HomePage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);

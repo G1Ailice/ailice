@@ -1,25 +1,7 @@
 'use client';
 
-import {
-  Container,
-  Box,
-  Typography,
-  Button,
-  Avatar,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-  Snackbar,
-  Alert,
-  IconButton,
-  CircularProgress,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-} from '@mui/material';
+import { Container, Box, Typography, Button, Avatar, Dialog, DialogActions, DialogContent, DialogTitle, Snackbar, Alert, IconButton,
+  CircularProgress, TextField, FormControl, InputLabel, Select, MenuItem,} from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -29,6 +11,11 @@ import bcrypt from 'bcryptjs';
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+export const metadata = {
+  title: 'Account Settings',
+  description: 'Account Settings Page for Ailice',
+};
 
 export default function AccountSettings() {
   const router = useRouter();

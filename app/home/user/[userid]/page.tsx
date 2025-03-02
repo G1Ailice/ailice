@@ -45,6 +45,12 @@ interface Achievement {
   image: string;
 }
 
+export const metadata = {
+  title: 'User',
+  description: 'User Page for Ailice',
+};
+
+
 export default function UserProfilePage() {
   const router = useRouter();
   const { userid } = useParams(); // Get the dynamic [userid] parameter
