@@ -89,70 +89,94 @@ const LessonsPage = () => {
     fetchCurrentUser();
   }, [router]);
 
-  // 2. Check unlocked lessons (for Locked and Final lessons)
-  useEffect(() => {
-    if (!currentUser || lessons.length === 0) return;
+ // 2. Check unlocked lessons (for Locked and Final lessons)
+useEffect(() => {
+  if (!currentUser || lessons.length === 0) return;
 
-    const checkUnlockedLessons = async () => {
-      const newUnlockedLessons: Record<string, boolean> = {};
+  const checkUnlockedLessons = async () => {
+    const newUnlockedLessons: Record<string, boolean> = {};
 
-      // Utility function: calculate level from exp.
-      const calculateLevel = (exp: number | null) => {
-        if (!exp || exp <= 0) return { level: 1, currentExp: 0, nextExp: 100 };
-        let level = 1;
-        let expNeeded = 100;
-        while (exp >= expNeeded && level < 100) {
-          exp -= expNeeded;
-          level++;
-          expNeeded += 50;
+    // Filter lessons that require a check
+    const lockedLessons = lessons.filter(
+      (lesson) => lesson.status === "Locked" || lesson.status === "Final"
+    );
+
+    // Collect unique trial IDs from these lessons (skip falsy values)
+    const trialIds = Array.from(
+      new Set(lockedLessons.map((lesson) => lesson.unlocked_by).filter(Boolean))
+    );
+
+    // Fetch all trial_data records for current user for these trial IDs in one query
+    const { data: trialDataRecords, error } = await supabase
+      .from("trial_data")
+      .select("trial_id, eval_score, star")
+      .eq("user_id", currentUser.id)
+      .in("trial_id", trialIds);
+
+    let trialDataByTrialId: Record<string, { eval_score: number; star: number }> = {};
+    if (!error && trialDataRecords && trialDataRecords.length > 0) {
+      // For each trial id, determine the best record (highest eval_score)
+      trialIds.forEach((trialId) => {
+        const recordsForTrial = trialDataRecords.filter(
+          (record: any) => record.trial_id === trialId
+        );
+        if (recordsForTrial.length > 0) {
+          const bestRecord = recordsForTrial.reduce((prev: any, curr: any) =>
+            curr.eval_score > prev.eval_score ? curr : prev
+          );
+          trialDataByTrialId[trialId] = bestRecord;
         }
-        return { level, currentExp: exp, nextExp: expNeeded };
-      };
+      });
+    }
 
-      for (const lesson of lessons) {
-        // Treat both "Locked" and "Final" lessons the same for unlocking logic
-        if (lesson.status === "Locked" || lesson.status === "Final") {  // <-- Updated condition here
-          const trialIdToCheck = lesson.unlocked_by;
-          if (!trialIdToCheck) {
-            newUnlockedLessons[lesson.id] = false;
-            continue;
-          }
-          // Query trial_data for the best record for this trial and user.
-          const { data: trialDataRecords, error } = await supabase
-            .from("trial_data")
-            .select("eval_score, star")
-            .eq("user_id", currentUser.id)
-            .eq("trial_id", trialIdToCheck)
-            .order("eval_score", { ascending: false })
-            .limit(1);
-
-          if (error || !trialDataRecords || trialDataRecords.length === 0) {
-            newUnlockedLessons[lesson.id] = false;
-            continue;
-          }
-
-          const bestRecord = trialDataRecords[0];
-          if (bestRecord.star >= 2) {
-            if (!lesson.level_req) {
-              newUnlockedLessons[lesson.id] = true;
-            } else {
-              const requiredLevel = Number(lesson.level_req);
-              const userExp = Number(currentUser.exp);
-              const userLevelData = calculateLevel(userExp);
-              newUnlockedLessons[lesson.id] = userLevelData.level >= requiredLevel;
-            }
-          } else {
-            newUnlockedLessons[lesson.id] = false;
-          }
-        } else {
-          newUnlockedLessons[lesson.id] = true;
-        }
+    // Utility: calculate level from exp.
+    const calculateLevel = (exp: number | null) => {
+      if (!exp || exp <= 0) return { level: 1, currentExp: 0, nextExp: 100 };
+      let level = 1;
+      let expNeeded = 100;
+      while (exp >= expNeeded && level < 100) {
+        exp -= expNeeded;
+        level++;
+        expNeeded += 50;
       }
-      setUnlockedLessons(newUnlockedLessons);
+      return { level, currentExp: exp, nextExp: expNeeded };
     };
 
-    checkUnlockedLessons();
-  }, [currentUser, lessons]);
+    // Now loop through all lessons to set unlocked status
+    for (const lesson of lessons) {
+      if (lesson.status === "Locked" || lesson.status === "Final") {
+        const trialIdToCheck = lesson.unlocked_by;
+        if (!trialIdToCheck) {
+          newUnlockedLessons[lesson.id] = false;
+          continue;
+        }
+        const bestRecord = trialDataByTrialId[trialIdToCheck];
+        if (!bestRecord) {
+          newUnlockedLessons[lesson.id] = false;
+          continue;
+        }
+        if (bestRecord.star >= 2) {
+          if (!lesson.level_req) {
+            newUnlockedLessons[lesson.id] = true;
+          } else {
+            const requiredLevel = Number(lesson.level_req);
+            const userExp = Number(currentUser.exp);
+            const userLevelData = calculateLevel(userExp);
+            newUnlockedLessons[lesson.id] = userLevelData.level >= requiredLevel;
+          }
+        } else {
+          newUnlockedLessons[lesson.id] = false;
+        }
+      } else {
+        // Lessons that are not Locked or Final are always unlocked.
+        newUnlockedLessons[lesson.id] = true;
+      }
+    }
+    setUnlockedLessons(newUnlockedLessons);
+  };
+
+  checkUnlockedLessons();
+}, [currentUser, lessons]);
 
 
   // 3. Remove expired trials
@@ -721,7 +745,6 @@ const LessonsPage = () => {
                                     {buttonLabel}
                                   </Typography>
                                 </Button>
-
                               );
                             })}
                           </Box>

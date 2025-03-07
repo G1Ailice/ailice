@@ -196,7 +196,6 @@ export default function LoginPage() {
 
   return (
     <ThemeProvider theme={theme}>
-      <SpeedInsights />
       <CssBaseline />
       <Container maxWidth="sm" sx={{ py: 6 }}>
         {/* Logo / Header */}

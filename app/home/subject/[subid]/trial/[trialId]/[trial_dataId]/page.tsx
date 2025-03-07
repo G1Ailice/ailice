@@ -585,313 +585,428 @@ const TrialPage = () => {
   const currentQuestion = questions[currentQuestionIndex];
 
   return (
-    <Container maxWidth="md" sx={{ mt: { xs: 1, md: 2 }, p: { xs: 0.8, md: 1 }, overflowX: "hidden" }}>
-      {/* Header Section */}
-      <Box sx={{ mb: { xs: 1, md: 2 }, textAlign: "center" }}>
-        <Typography variant="h2" component="h1" sx={{ fontWeight: "bold", fontSize: { xs: "1.5rem", md: "2rem" } }}>
-          {trialInfo?.trial_title || "Trial"}
-        </Typography>
-        <Typography variant="h2" sx={{ color: "primary.main", fontSize: { xs: "1rem", md: "1.25rem" } }}>
-          Remaining Time: {formatTime(remainingTime)}
-        </Typography>
-      </Box>
-      
-      <Box sx={{ mb: { xs: 1.5, md: 2 } }}>
-        {currentQuestion && (
-          <Slide
-            in={true}
-            direction={slideDirection}
-            timeout={300}
-            mountOnEnter
-            unmountOnExit
-            key={currentQuestion.id}
+  <Container
+    maxWidth="md"
+    sx={{
+      mt: { xs: 2, md: 3 },
+      p: { xs: 1, md: 2 },
+      background:
+        "linear-gradient(135deg, rgba(225,245,254,0.9) 0%, rgba(187,222,251,0.9) 100%)",
+      borderRadius: "16px",
+      boxShadow: "0 4px 20px rgba(0,0,0,0.1)",
+      overflowX: "hidden",
+    }}
+  >
+    {/* Header Section */}
+    <Box
+      sx={{
+        mb: { xs: 2, md: 3 },
+        textAlign: "center",
+        p: { xs: 1, md: 2 },
+        background: "rgba(25,118,210,0.1)",
+        borderRadius: "12px",
+      }}
+    >
+      <Typography
+        variant="h2"
+        component="h1"
+        sx={{
+          fontWeight: "bold",
+          fontSize: { xs: "1.5rem", md: "2.25rem" },
+          color: "#0d47a1",
+        }}
+      >
+        {trialInfo?.trial_title || "Trial"}
+      </Typography>
+      <Typography
+        variant="h2"
+        sx={{
+          color: "#1976d2",
+          fontSize: { xs: "1rem", md: "1.25rem" },
+          mt: 1,
+        }}
+      >
+        Remaining Time: {formatTime(remainingTime)}
+      </Typography>
+    </Box>
+
+    {/* Question Section */}
+    <Box sx={{ mb: { xs: 2, md: 3 } }}>
+      {currentQuestion && (
+        <Slide
+          in={true}
+          direction={slideDirection}
+          timeout={300}
+          mountOnEnter
+          unmountOnExit
+          key={currentQuestion.id}
+        >
+          <Paper
+            elevation={4}
+            sx={{
+              p: { xs: 2, md: 3 },
+              borderRadius: "16px",
+              background: "rgba(255,255,255,0.95)",
+              border: "1px solid #e3f2fd",
+              boxShadow: "0 6px 20px rgba(0,0,0,0.1)",
+            }}
           >
-            <Paper
-              elevation={3}
-              sx={{
-                p: { xs: 1.5, md: 2 },
-                borderRadius: "12px",
-                boxShadow: "0 4px 16px rgba(0, 0, 0, 0.15)",
-                backgroundColor: "white",
-              }}
-            >
-              <Box sx={{ mb: { xs: 1.5, md: 2 } }}>
-                <Typography variant="h6" sx={{ fontWeight: "medium", fontSize: { xs: "0.8rem", md: "1rem" } }}>
-                  Question {currentQuestionIndex + 1} of {questions.length}
-                </Typography>
-              </Box>
-              <Box sx={{ mb: { xs: 0.8, md: 1 } }}>
-                <MemoizedQuestionContent qcontent={currentQuestion.qcontent} />
-              </Box>
-              {currentQuestion.qtype === "Single" && (
-                <FormControl component="fieldset" fullWidth>
-                  <RadioGroup
-                    value={userAnswers[currentQuestion.id] || ""}
-                    onChange={(e) => handleAnswerChange(currentQuestion, e.target.value)}
-                  >
-                    {currentQuestion.qselection.map((option, index) => (
-                      <FormControlLabel
-                        key={option}
-                        value={option}
-                        control={<Radio sx={{ fontSize: { xs: "0.6rem", md: "0.8rem" } }} />}
-                        label={`${index + 1}. ${option}`}
-                        sx={{ fontSize: { xs: "0.75rem", md: "1rem" } }}
-                      />
-                    ))}
-                  </RadioGroup>
-                </FormControl>
-              )}
-              {currentQuestion.qtype === "Multiple" && (
-                <FormControl component="fieldset" fullWidth>
-                  {currentQuestion.qselection.map((option, index) => {
-                    const selected: string[] = Array.isArray(userAnswers[currentQuestion.id])
-                      ? (userAnswers[currentQuestion.id] as string[])
-                      : [];
-                    const maxSelections = currentQuestion.qcorrectanswer.length;
-                    const disableCheckbox =
-                      !selected.includes(option) && selected.length >= maxSelections;
-                    return (
-                      <FormControlLabel
-                        key={option}
-                        control={
-                          <Checkbox
-                            checked={selected.includes(option)}
-                            onChange={(e) => {
-                              let newSelections: string[] = [...selected];
-                              if (e.target.checked) {
-                                if (newSelections.length < maxSelections) {
-                                  newSelections.push(option);
-                                }
-                              } else {
-                                newSelections = newSelections.filter((sel) => sel !== option);
-                              }
-                              handleAnswerChange(currentQuestion, newSelections);
-                            }}
-                            disabled={disableCheckbox}
-                            sx={{ fontSize: { xs: "0.75rem", md: "1rem" } }}
-                          />
-                        }
-                        label={`${index + 1}. ${option}`}
-                        sx={{ fontSize: { xs: "0.75rem", md: "1rem" } }}
-                      />
-                    );
-                  })}
-                </FormControl>
-              )}
-              {currentQuestion.qtype === "Input" && (
-                <TextField
-                  fullWidth
-                  label="Your Answer"
+            <Box sx={{ mb: { xs: 1.5, md: 2 } }}>
+              <Typography
+                variant="h6"
+                sx={{
+                  fontWeight: 500,
+                  fontSize: { xs: "0.9rem", md: "1.1rem" },
+                  color: "#0d47a1",
+                }}
+              >
+                Question {currentQuestionIndex + 1} of {questions.length}
+              </Typography>
+            </Box>
+            <Box sx={{ mb: { xs: 1, md: 2 } }}>
+              <MemoizedQuestionContent qcontent={currentQuestion.qcontent} />
+            </Box>
+            {currentQuestion.qtype === "Single" && (
+              <FormControl component="fieldset" fullWidth>
+                <RadioGroup
                   value={userAnswers[currentQuestion.id] || ""}
                   onChange={(e) => handleAnswerChange(currentQuestion, e.target.value)}
-                  sx={{ my: { xs: 1, md: 2 }, fontSize: { xs: "0.75rem", md: "1rem" } }}
-                />
-              )}
-            </Paper>
-          </Slide>
-        )}
-      </Box>
+                >
+                  {currentQuestion.qselection.map((option, index) => (
+                    <FormControlLabel
+                      key={option}
+                      value={option}
+                      control={
+                        <Radio
+                          sx={{
+                            fontSize: { xs: "0.6rem", md: "0.8rem" },
+                            color: "#1976d2",
+                          }}
+                        />
+                      }
+                      label={`${index + 1}. ${option}`}
+                      sx={{
+                        fontSize: { xs: "0.75rem", md: "1rem" },
+                        color: "#0d47a1",
+                      }}
+                    />
+                  ))}
+                </RadioGroup>
+              </FormControl>
+            )}
+            {currentQuestion.qtype === "Multiple" && (
+              <FormControl component="fieldset" fullWidth>
+                {currentQuestion.qselection.map((option, index) => {
+                  const selected: string[] = Array.isArray(userAnswers[currentQuestion.id])
+                    ? (userAnswers[currentQuestion.id] as string[])
+                    : [];
+                  const maxSelections = currentQuestion.qcorrectanswer.length;
+                  const disableCheckbox =
+                    !selected.includes(option) && selected.length >= maxSelections;
+                  return (
+                    <FormControlLabel
+                      key={option}
+                      control={
+                        <Checkbox
+                          checked={selected.includes(option)}
+                          onChange={(e) => {
+                            let newSelections: string[] = [...selected];
+                            if (e.target.checked) {
+                              if (newSelections.length < maxSelections) {
+                                newSelections.push(option);
+                              }
+                            } else {
+                              newSelections = newSelections.filter((sel) => sel !== option);
+                            }
+                            handleAnswerChange(currentQuestion, newSelections);
+                          }}
+                          disabled={disableCheckbox}
+                          sx={{
+                            fontSize: { xs: "0.75rem", md: "1rem" },
+                            color: "#1976d2",
+                          }}
+                        />
+                      }
+                      label={`${index + 1}. ${option}`}
+                      sx={{ fontSize: { xs: "0.75rem", md: "1rem" }, color: "#0d47a1" }}
+                    />
+                  );
+                })}
+              </FormControl>
+            )}
+            {currentQuestion.qtype === "Input" && (
+              <TextField
+                fullWidth
+                label="Your Answer"
+                value={userAnswers[currentQuestion.id] || ""}
+                onChange={(e) => handleAnswerChange(currentQuestion, e.target.value)}
+                sx={{ my: { xs: 1, md: 2 }, fontSize: { xs: "0.75rem", md: "1rem" } }}
+              />
+            )}
+          </Paper>
+        </Slide>
+      )}
+    </Box>
 
-      {/* Navigation Buttons */}
-      <Grid container spacing={2} sx={{ mb: { xs: 1.5, md: 2 } }}>
-        <Grid item xs={6}>
+    {/* Navigation Buttons */}
+    <Grid container spacing={2} sx={{ mb: { xs: 2, md: 3 } }}>
+      <Grid item xs={6}>
+        <Button
+          variant="contained"
+          fullWidth
+          onClick={handlePrev}
+          disabled={isSubmitting || currentQuestionIndex === 0}
+          sx={{
+            borderRadius: "8px",
+            boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
+            textTransform: "none",
+            fontSize: { xs: "0.75rem", md: "1rem" },
+            backgroundColor: "#1976d2",
+            "&:hover": {
+              boxShadow: "0px 4px 8px rgba(0,0,0,0.3)",
+              backgroundColor: "#1565c0",
+            },
+          }}
+        >
+          Prev
+        </Button>
+      </Grid>
+      <Grid item xs={6}>
+        {currentQuestionIndex === questions.length - 1 ? (
           <Button
             variant="contained"
             fullWidth
-            onClick={handlePrev}
-            disabled={isSubmitting || currentQuestionIndex === 0}
+            onClick={() => finishSubmission()}
+            disabled={isSubmitting}
             sx={{
               borderRadius: "8px",
               boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
               textTransform: "none",
               fontSize: { xs: "0.75rem", md: "1rem" },
-              "&:hover": { boxShadow: "0px 4px 8px rgba(0,0,0,0.3)" },
+              backgroundColor: "#d32f2f",
+              "&:hover": {
+                boxShadow: "0px 4px 8px rgba(0,0,0,0.3)",
+                backgroundColor: "#b71c1c",
+              },
             }}
           >
-            Prev
+            Finish
           </Button>
-        </Grid>
-        <Grid item xs={6}>
+        ) : (
           <Button
             variant="contained"
             fullWidth
             onClick={handleNext}
-            disabled={isSubmitting || currentQuestionIndex === questions.length - 1}
+            disabled={isSubmitting}
             sx={{
               borderRadius: "8px",
               boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
               textTransform: "none",
               fontSize: { xs: "0.75rem", md: "1rem" },
-              "&:hover": { boxShadow: "0px 4px 8px rgba(0,0,0,0.3)" },
+              backgroundColor: "#1976d2",
+              "&:hover": {
+                boxShadow: "0px 4px 8px rgba(0,0,0,0.3)",
+                backgroundColor: "#1565c0",
+              },
             }}
           >
             Next
           </Button>
-        </Grid>
+        )}
       </Grid>
+    </Grid>
 
-      {/* Finish Button */}
-      <Box sx={{ textAlign: "center", mb: { xs: 1, md: 2 } }}>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={() => finishSubmission()}
-          disabled={isSubmitting}
-          sx={{
-            px: { xs: 2, md: 4 },
-            py: { xs: 1, md: 1.5 },
-            fontSize: { xs: "0.75rem", md: "1rem" },
-            borderRadius: "8px",
-            boxShadow: "0px 2px 4px rgba(0,0,0,0.2)",
-            textTransform: "none",
-            "&:hover": { boxShadow: "0px 4px 8px rgba(0,0,0,0.3)" },
-          }}
-        >
-          Finish
-        </Button>
-      </Box>
-
-      {/* Finish Dialog */}
-      <Dialog
-        open={openDialog}
-        onClose={handleDialogClose}
-        fullWidth
-        maxWidth="sm"
-        PaperProps={{
-          sx: {
-            borderRadius: "16px",
-            boxShadow: "0px 4px 20px rgba(0,0,0,0.1)",
-            p: 0,
-          },
+    {/* Finish Dialog */}
+    <Dialog
+      open={openDialog}
+      onClose={handleDialogClose}
+      fullWidth
+      maxWidth="sm"
+      PaperProps={{
+        sx: {
+          borderRadius: "16px",
+          boxShadow: "0px 6px 20px rgba(0,0,0,0.15)",
+          p: 0,
+          background:
+            "linear-gradient(135deg, rgba(225,245,254,0.95) 0%, rgba(187,222,251,0.95) 100%)",
+        },
+      }}
+    >
+      <DialogTitle
+        sx={{
+          textAlign: "center",
+          fontWeight: "bold",
+          backgroundColor: "#1976d2",
+          color: "white",
+          py: { xs: 2, md: 3 },
+          borderTopLeftRadius: "16px",
+          borderTopRightRadius: "16px",
+          fontSize: { xs: "1rem", md: "1.25rem" },
         }}
       >
-        <DialogTitle
-          sx={{
-            textAlign: "center",
-            fontWeight: "bold",
-            backgroundColor: "primary.main",
-            color: "white",
-            py: { xs: 1.5, md: 2 },
-            borderTopLeftRadius: "16px",
-            borderTopRightRadius: "16px",
-            fontSize: { xs: "1rem", md: "1.25rem" },
-          }}
-        >
-          Trial Completed!
-        </DialogTitle>
-        <DialogContent sx={{ p: { xs: 2, md: 3 } }}>
-          <Box sx={{ textAlign: "center", mb: { xs: 1, md: 2 } }}>
-            <Typography variant="h6" sx={{ mt: { xs: 1, md: 2 }, fontSize: { xs: "1rem", md: "1.25rem" } }}>
-              {trialInfo?.trial_title}
-            </Typography>
-            <Typography variant="subtitle1" sx={{ mt: { xs: 0.5, md: 1 }, fontSize: { xs: "0.8rem", md: "1rem" } }}>
-              Score: {finalScore} / {allScore}
-            </Typography>
-            <Typography variant="subtitle1" sx={{ fontSize: { xs: "0.8rem", md: "1rem" } }}>
-              Remaining Time: {formatTime(remainingTime)} ({remainingTime} seconds)
-            </Typography>
-          </Box>
-          <Box
+        Trial Completed!
+      </DialogTitle>
+      <DialogContent sx={{ p: { xs: 2, md: 3 } }}>
+        <Box sx={{ textAlign: "center", mb: { xs: 2, md: 3 } }}>
+          <Typography
+            variant="h6"
             sx={{
-              display: "flex",
-              justifyContent: "center",
-              alignItems: "center",
-              gap: 1,
-              mb: { xs: 1, md: 2 },
+              mt: { xs: 1, md: 2 },
+              fontSize: { xs: "1rem", md: "1.25rem" },
+              color: "#0d47a1",
             }}
           >
-            {star1Display ? (
-              <StarIcon color="warning" sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
-            ) : (
-              <StarBorderIcon sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
-            )}
-            {star2Display ? (
-              <StarIcon color="warning" sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
-            ) : (
-              <StarBorderIcon sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
-            )}
-            {star3Display ? (
-              <StarIcon color="warning" sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
-            ) : (
-              <StarBorderIcon sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
-            )}
-          </Box>
-          {/* Hidden Achievement Section */}
-          <Box sx={{ mt: { xs: 1, md: 2 }, textAlign: "center" }}>
-            {hiddenAchvAchieved && hiddenAchvDetails ? (
-              <Box sx={{ textAlign: "center", mb: { xs: 1, md: 2 } }}>
-                <Typography variant="body2" sx={{ fontWeight: "bold", mb: { xs: 0.5, md: 1 }, fontSize: { xs: "0.75rem", md: "0.875rem" } }}>
-                  Hidden Achievement Earned
-                </Typography>
-                <Box
-                  component="img"
-                  src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/achivements/${hiddenAchvDetails.image}`}
-                  alt={hiddenAchvDetails.name}
-                  sx={{ maxWidth: { xs: "80px", md: "100px" }, mb: { xs: 0.5, md: 1 }, borderRadius: "8px" }}
-                />
-                <Typography variant="h6" sx={{ fontSize: { xs: "1rem", md: "1.25rem" } }}>{hiddenAchvDetails.name}</Typography>
-                <Typography variant="body2" sx={{ fontSize: { xs: "0.75rem", md: "0.875rem" } }}>
-                  Condition: {hiddenAchvDetails.description}
-                </Typography>
-              </Box>
-            ) : (
-              <Box
+            {trialInfo?.trial_title}
+          </Typography>
+          <Typography
+            variant="subtitle1"
+            sx={{ mt: 1, fontSize: { xs: "0.9rem", md: "1rem" }, color: "#1976d2" }}
+          >
+            Score: {finalScore} / {allScore}
+          </Typography>
+          <Typography
+            variant="subtitle1"
+            sx={{ fontSize: { xs: "0.9rem", md: "1rem" }, color: "#1976d2" }}
+          >
+            Remaining Time: {formatTime(remainingTime)} ({remainingTime} seconds)
+          </Typography>
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            gap: 1,
+            mb: { xs: 2, md: 3 },
+          }}
+        >
+          {star1Display ? (
+            <StarIcon color="warning" sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
+          ) : (
+            <StarBorderIcon sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
+          )}
+          {star2Display ? (
+            <StarIcon color="warning" sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
+          ) : (
+            <StarBorderIcon sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
+          )}
+          {star3Display ? (
+            <StarIcon color="warning" sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
+          ) : (
+            <StarBorderIcon sx={{ fontSize: { xs: "1.5rem", md: "2rem" } }} />
+          )}
+        </Box>
+        {/* Hidden Achievement Section */}
+        <Box sx={{ mt: { xs: 2, md: 3 }, textAlign: "center" }}>
+          {hiddenAchvAchieved && hiddenAchvDetails ? (
+            <Box sx={{ textAlign: "center", mb: { xs: 2, md: 3 } }}>
+              <Typography
+                variant="body2"
                 sx={{
-                  mt: { xs: 1, md: 2 },
-                  textAlign: "center",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 1,
+                  fontWeight: "bold",
+                  mb: { xs: 0.5, md: 1 },
+                  fontSize: { xs: "0.75rem", md: "0.875rem" },
+                  color: "#0d47a1",
                 }}
               >
-                <HelpTwoToneIcon color="disabled" sx={{ fontSize: { xs: "1rem", md: "1.5rem" } }} />
-                <Typography variant="body1" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", md: "0.875rem" } }}>
-                  Secret Achievement Remains Locked
-                </Typography>
-              </Box>
-            )}
-          </Box>
-          {/* Gained EXP Section */}
-          <Box sx={{ mt: { xs: 1, md: 2 }, textAlign: "center" }}>
-            <Typography variant="h6" sx={{ color: "green", fontSize: { xs: "1rem", md: "1.25rem" } }}>
-              Gained Exp: +{gainedExp}
-            </Typography>
-          </Box>
-          {attemptMessage && (
-            <Box sx={{ mt: { xs: 1, md: 2 }, textAlign: "center" }}>
-              <Typography variant="body1" color="secondary" sx={{ fontSize: { xs: "0.75rem", md: "0.875rem" } }}>
-                {attemptMessage}
+                Hidden Achievement Earned
+              </Typography>
+              <Box
+                component="img"
+                src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/achivements/${hiddenAchvDetails.image}`}
+                alt={hiddenAchvDetails.name}
+                sx={{ maxWidth: { xs: "80px", md: "100px" }, mb: { xs: 0.5, md: 1 }, borderRadius: "8px" }}
+              />
+              <Typography variant="h6" sx={{ fontSize: { xs: "1rem", md: "1.25rem" }, color: "#0d47a1" }}>
+                {hiddenAchvDetails.name}
+              </Typography>
+              <Typography variant="body2" sx={{ fontSize: { xs: "0.75rem", md: "0.875rem" }, color: "#1976d2" }}>
+                Condition: {hiddenAchvDetails.description}
+              </Typography>
+            </Box>
+          ) : (
+            <Box
+              sx={{
+                mt: { xs: 2, md: 3 },
+                textAlign: "center",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 1,
+              }}
+            >
+              <HelpTwoToneIcon color="disabled" sx={{ fontSize: { xs: "1rem", md: "1.5rem" } }} />
+              <Typography variant="body1" color="text.secondary" sx={{ fontSize: { xs: "0.75rem", md: "0.875rem" } }}>
+                Secret Achievement Remains Locked
               </Typography>
             </Box>
           )}
-          {/* Display penalty warning if the user switched tabs */}
-          {tabSwitched && (
-            <Box sx={{ mt: { xs: 1, md: 2 }, textAlign: "center" }}>
-              <Typography variant="body2" sx={{ color: "red", fontWeight: "bold", fontSize: { xs: "0.75rem", md: "0.875rem" } }}>
-                You can't switch tabs during trial – please try not to cheat (-20% score)
-              </Typography>
-            </Box>
-          )}
-          <Box sx={{ mt: { xs: 1, md: 2 } }}>
-            <Typography variant="body2" align="center" sx={{ fontSize: { xs: "0.65rem", md: "0.875rem" } }}>
-              * First Star: Awarded for completing the trial.
-            </Typography>
-            <Typography variant="body2" align="center" sx={{ fontSize: { xs: "0.65rem", md: "0.875rem" } }}>
-              * Second Star: Awarded if your score is at least 70% of the total score and you have earned the first star.
-            </Typography>
-            <Typography variant="body2" align="center" sx={{ fontSize: { xs: "0.65rem", md: "0.875rem" } }}>
-              * Third Star: Awarded if you finish with at least 35% of the time remaining and you have earned the second star.
+        </Box>
+        {/* Gained EXP Section */}
+        <Box sx={{ mt: { xs: 2, md: 3 }, textAlign: "center" }}>
+          <Typography
+            variant="h6"
+            sx={{ color: "green", fontSize: { xs: "1rem", md: "1.25rem" } }}
+          >
+            Gained Exp: +{gainedExp}
+          </Typography>
+        </Box>
+        {attemptMessage && (
+          <Box sx={{ mt: { xs: 2, md: 3 }, textAlign: "center" }}>
+            <Typography
+              variant="body1"
+              color="secondary"
+              sx={{ fontSize: { xs: "0.75rem", md: "0.875rem" } }}
+            >
+              {attemptMessage}
             </Typography>
           </Box>
-        </DialogContent>
-        <DialogActions sx={{ justifyContent: "center", pb: { xs: 1, md: 2 } }}>
-          <Button onClick={handleDialogClose} variant="contained" color="primary" sx={{ px: { xs: 2, md: 4 }, py: { xs: 1, md: 1 }, fontSize: { xs: "0.75rem", md: "1rem" } }}>
-            Close
-          </Button>
-        </DialogActions>
-      </Dialog>
-    </Container>
+        )}
+        {tabSwitched && (
+          <Box sx={{ mt: { xs: 2, md: 3 }, textAlign: "center" }}>
+            <Typography
+              variant="body2"
+              sx={{
+                color: "red",
+                fontWeight: "bold",
+                fontSize: { xs: "0.75rem", md: "0.875rem" },
+              }}
+            >
+              You can't switch tabs during trial – please try not to cheat (-20% score)
+            </Typography>
+          </Box>
+        )}
+        <Box sx={{ mt: { xs: 2, md: 3 } }}>
+          <Typography variant="body2" align="center" sx={{ fontSize: { xs: "0.65rem", md: "0.875rem" } }}>
+            * First Star: Awarded for completing the trial.
+          </Typography>
+          <Typography variant="body2" align="center" sx={{ fontSize: { xs: "0.65rem", md: "0.875rem" } }}>
+            * Second Star: Awarded if your score is at least 70% of the total score and you have earned the first star.
+          </Typography>
+          <Typography variant="body2" align="center" sx={{ fontSize: { xs: "0.65rem", md: "0.875rem" } }}>
+            * Third Star: Awarded if you finish with at least 35% of the time remaining and you have earned the second star.
+          </Typography>
+        </Box>
+      </DialogContent>
+      <DialogActions sx={{ justifyContent: "center", pb: { xs: 2, md: 3 } }}>
+        <Button
+          onClick={handleDialogClose}
+          variant="contained"
+          color="primary"
+          sx={{
+            px: { xs: 3, md: 5 },
+            py: { xs: 1.5, md: 2 },
+            fontSize: { xs: "0.75rem", md: "1rem" },
+            borderRadius: "8px",
+            boxShadow: "0px 2px 6px rgba(0,0,0,0.2)",
+          }}
+        >
+          Close
+        </Button>
+      </DialogActions>
+    </Dialog>
+  </Container>
+
   );
 };
 
