@@ -319,94 +319,110 @@ export default function HomePage() {
         </Box>
       </Box>
 
-      {/* My Achivements Section */}
+{/* My Achivements Section */}
+<Box
+  display="flex"
+  flexDirection="column"
+  alignItems="center"
+  p={4}
+  sx={{
+    backgroundColor: grey[200],
+    borderRadius: '16px',
+    boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)',
+    animation: `${fadeIn} 0.8s ease-out forwards`,
+  }}
+>
+  <Typography
+    variant="h5"
+    sx={{
+      fontWeight: 600,
+      color: grey[900],
+      mb: 3,
+    }}
+  >
+    My Achivements:
+  </Typography>
+  <Button
+    variant="contained"
+    onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
+    sx={{ mb: 3 }}
+  >
+    Sort: {sortOrder === 'asc' ? 'Oldest First' : 'Newest First'}
+  </Button>
+  {achievementsLoading ? (
+    <CircularProgress />
+  ) : achievements.length > 0 ? (
+    // Wrapper Box with fixed height and scrolling enabled
+    <Box
+      sx={{
+        width: '100%',
+        maxHeight: '300px', // Reduced height from 400px to 300px
+        overflowY: 'auto',
+      }}
+    >
       <Box
-        display="flex"
-        flexDirection="column"
-        alignItems="center"
-        p={4}
-        sx={{
-          backgroundColor: grey[200],
-          borderRadius: '16px',
-          boxShadow: '0 8px 16px rgba(0, 0, 0, 0.1)',
-          animation: `${fadeIn} 0.8s ease-out forwards`,
+        display="grid"
+        gridTemplateColumns={{
+          xs: 'repeat(1, 1fr)', // 1 column for extra-small devices
+          sm: 'repeat(2, 1fr)', // 2 columns for small devices
+          md: 'repeat(3, 1fr)', // 3 columns for medium devices
+          lg: 'repeat(4, 1fr)', // 4 columns for large devices and up
         }}
+        gap={2}
+        sx={{ width: '100%' }}
       >
-        <Typography
-          variant="h5"
-          sx={{
-            fontWeight: 600,
-            color: grey[900],
-            mb: 3,
-          }}
-        >
-          My Achivements:
-        </Typography>
-        <Button
-          variant="contained"
-          onClick={() => setSortOrder((prev) => (prev === 'asc' ? 'desc' : 'asc'))}
-          sx={{ mb: 3 }}
-        >
-          Sort: {sortOrder === 'asc' ? 'Oldest First' : 'Newest First'}
-        </Button>
-        {achievementsLoading ? (
-          <CircularProgress />
-        ) : achievements.length > 0 ? (
-          <Box
-            display="grid"
-            gridTemplateColumns="repeat(4, 1fr)"
-            gap={2}
-            sx={{ width: '100%' }}
-          >
-            {achievements.map((ach) => (
-              <Paper
-                key={ach.achv_id}
-                elevation={3}
-                sx={{
-                  p: 2,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 1,
-                  backgroundColor: grey[50],
-                  borderRadius: '12px',
-                }}
-              >
-                <Box
-                  component="img"
-                  src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/achivements/${ach.image}`}
-                  alt={ach.name}
-                  sx={{
-                    width: '100%',
-                    maxWidth: 150,
-                    borderRadius: '8px',
-                  }}
-                />
-                <Typography variant="h6" sx={{ fontWeight: 600, color: grey[800], textAlign: 'center' }}>
-                  {ach.name}
-                </Typography>
-                <Typography variant="body2" sx={{ color: grey[700], textAlign: 'center' }}>
-                  {ach.description}
-                </Typography>
-                <Typography variant="caption" sx={{ color: grey[600] }}>
-                  {formatDate(ach.time_date)}
-                </Typography>
-              </Paper>
-            ))}
-          </Box>
-        ) : (
-          <Typography
-            variant="h6"
+        {achievements.map((ach) => (
+          <Paper
+            key={ach.achv_id}
+            elevation={3}
             sx={{
-              color: grey[600],
-              textAlign: 'center',
-              mt: 4,
+              p: 2,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 1,
+              backgroundColor: grey[50],
+              borderRadius: '12px',
             }}
           >
-            You don't have any achievements yet.
-          </Typography>
-        )}
+            <Box
+              component="img"
+              src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/achivements/${ach.image}`}
+              alt={ach.name}
+              sx={{
+                width: '100%',
+                maxWidth: 150,
+                borderRadius: '8px',
+              }}
+            />
+            <Typography variant="h6" sx={{ fontWeight: 600, color: grey[800], textAlign: 'center' }}>
+              {ach.name}
+            </Typography>
+            <Typography variant="body2" sx={{ color: grey[700], textAlign: 'center' }}>
+              {ach.description}
+            </Typography>
+            <Typography variant="caption" sx={{ color: grey[600] }}>
+              {formatDate(ach.time_date)}
+            </Typography>
+          </Paper>
+        ))}
       </Box>
+    </Box>
+  ) : (
+    <Typography
+      variant="h6"
+      sx={{
+        color: grey[600],
+        textAlign: 'center',
+        mt: 4,
+      }}
+    >
+      You don't have any achievements yet.
+    </Typography>
+  )}
+</Box>
+
+
     </Container>
   );
 }

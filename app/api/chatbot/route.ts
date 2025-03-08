@@ -137,7 +137,7 @@ export async function POST(req: Request) {
       }
       systemPrompt = `You are a teacher-like assistant named AIlice. Below is the reference text:
 Reference: "${vectorContent}"
-When answering the user's question, do not add, modify, or paraphrase the reference text. If their is no reference only say this content is not in the database. You can use emoticons.`;
+When answering the user's question, do not add, modify, or paraphrase the reference text. If their is no reference only say "Im sorry but i have no knowledge of this request". You can use emoticons.`;
       conversation = [
         { role: "system", content: systemPrompt },
         { role: "user", content: newMessage },
