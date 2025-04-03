@@ -23,6 +23,7 @@ import {
   createTheme,
   Skeleton,
   CircularProgress,
+  Divider,
 } from '@mui/material';
 import { grey, blue } from '@mui/material/colors';
 import { createClient } from '@supabase/supabase-js';
@@ -295,140 +296,98 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <ThemeProvider theme={theme}>
-      <SpeedInsights />
-      <CssBaseline />
-      {isMobile ? (
-        <>
-          {/* MOBILE HEADER */}
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              margin: '1rem',
-            }}
-          >
+<ThemeProvider theme={theme}>
+  <SpeedInsights />
+  <CssBaseline />
+  {isMobile ? (
+    <>
+      {/* MOBILE HEADER */}
+      <Box
+        sx={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: theme.zIndex.appBar, // ensure it appears on top
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          backgroundColor: '#fff',
+          padding: '0.5rem 1rem',
+          boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+        }}
+      >
+        <Typography
+          variant="h4"
+          component="div"
+          color="primary"
+          sx={{
+            fontSize: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <img src="/icons/ailicemascot.png" alt="AILICEMASCOT" style={{ maxHeight: '30px' }} />
+          <img src="/icons/ailiceword.png" alt="AILICE" style={{ maxHeight: '30px' }} />
+        </Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
+          <Typography variant="body2" color="primary" sx={{ fontWeight: 'bold' }}>
+            Level {userLevel.level}
+          </Typography>
+          <Box sx={{ position: 'relative', width: 80 }}>
+            <LinearProgress
+              variant="determinate"
+              value={(userLevel.currentExp / userLevel.nextExp) * 100}
+              sx={{ height: 15, borderRadius: 3 }}
+            />
             <Typography
-              variant="h4"
-              component="div"
-              color="primary"
+              variant="body2"
+              color="textSecondary"
               sx={{
-                fontSize: '1.5rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
+                position: 'absolute',
+                top: 0,
+                left: '50%',
+                transform: 'translate(-50%, 0)',
+                lineHeight: '15px',
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                width: '100%',
+                textAlign: 'center',
               }}
             >
-              <img src="/icons/ailicemascot.png" alt="AILICEMASCOT" style={{ maxHeight: '30px' }} />
-              <img src="/icons/ailiceword.png" alt="AILICE" style={{ maxHeight: '30px' }} />
+              {userLevel.currentExp}/{userLevel.nextExp}
             </Typography>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexShrink: 0 }}>
-              <Typography variant="body2" color="primary" sx={{ fontWeight: 'bold' }}>
-                Level {userLevel.level}
-              </Typography>
-              <Box sx={{ position: 'relative', width: 80 }}>
-                <LinearProgress
-                  variant="determinate"
-                  value={(userLevel.currentExp / userLevel.nextExp) * 100}
-                  sx={{ height: 15, borderRadius: 3 }}
-                />
-                <Typography
-                  variant="body2"
-                  color="textSecondary"
-                  sx={{
-                    position: 'absolute',
-                    top: 0,
-                    left: '50%',
-                    transform: 'translate(-50%, 0)',
-                    lineHeight: '15px',
-                    fontSize: '0.75rem',
-                    fontWeight: 'bold',
-                    width: '100%',
-                    textAlign: 'center',
-                  }}
-                >
-                  {userLevel.currentExp}/{userLevel.nextExp}
-                </Typography>
-              </Box>
-            </Box>
           </Box>
+        </Box>
+      </Box>
 
-          {/* -- Mobile Bottom Navigation & Drawer remain unchanged -- */}
-          <BottomNavigation
-            sx={{
-              position: 'fixed',
-              bottom: 16,
-              left: '50%',
-              transform: 'translateX(-50%)',
-              backgroundColor: '#fff',
-              borderRadius: '30px',
-              boxShadow: '0px 4px 10px rgba(0,0,0,0.1)',
-              zIndex: 1000,
-              width: '90%',
-              maxWidth: 400,
-              justifyContent: 'space-around',
-            }}
-          >
-            <BottomNavigationAction
-              icon={<HomeIcon sx={{ fontSize: 30, color: blue[500] }} />}
-              onClick={() => router.push('/home')}
-              sx={{ minWidth: 'auto' }}
-            />
-            <BottomNavigationAction
-              icon={
-                <Avatar
-                  src={
-                    userData?.profile_pic
-                      ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${userData.profile_pic}`
-                      : undefined
-                  }
-                  sx={{
-                    width: 50,
-                    height: 50,
-                    backgroundColor: blue[200],
-                    border: '2px solid',
-                    borderColor: blue[500],
-                    borderRadius: '50%',
-                  }}
-                >
-                  {!userData?.profile_pic && userData?.username?.[0]?.toUpperCase()}
-                </Avatar>
-              }
-              onClick={handleClick}
-              sx={{ minWidth: 'auto', padding: 0 }}
-            />
-            <BottomNavigationAction
-              icon={<ArrowBackIcon sx={{ fontSize: 30, color: blue[500] }} />}
-              onClick={() => window.history.back()}
-              sx={{ minWidth: 'auto' }}
-            />
-          </BottomNavigation>
-
-          <Drawer
-            anchor="bottom"
-            open={openPopover}
-            onClose={handleClose}
-            PaperProps={{
-              sx: {
-                borderRadius: '12px 12px 0 0',
-                background: 'linear-gradient(135deg, #E3F2FD, #BBDEFB)',
-                p: 2,
-                boxShadow: '0px -4px 10px rgba(0, 0, 0, 0.1)',
-              },
-            }}
-          >
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-              }}
-            >
-              <IconButton sx={{ alignSelf: 'flex-end' }} onClick={handleClose}>
-                <CloseIcon />
-              </IconButton>
+      {/* Add a top margin/padding to your main content to prevent it from hiding behind the fixed header */}
+      <Box sx={{ marginTop: '70px' }}>
+        {/* MOBILE BOTTOM NAVIGATION & DRAWER remain unchanged */}
+        <BottomNavigation
+          sx={{
+            position: 'fixed',
+            bottom: 16,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: '#fff',
+            borderRadius: '30px',
+            boxShadow: '0px 4px 10px rgba(0,0,0,0.1)',
+            zIndex: 1000,
+            width: '90%',
+            maxWidth: 400,
+            justifyContent: 'space-around',
+          }}
+        >
+          <BottomNavigationAction
+            icon={<HomeIcon sx={{ fontSize: 30, color: blue[500] }} />}
+            onClick={() => router.push('/home')}
+            sx={{ minWidth: 'auto' }}
+          />
+          <BottomNavigationAction
+            icon={
               <Avatar
                 src={
                   userData?.profile_pic
@@ -436,392 +395,464 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
                     : undefined
                 }
                 sx={{
-                  width: 80,
-                  height: 80,
-                  mb: 1,
-                  backgroundColor: blue[300],
+                  width: 50,
+                  height: 50,
+                  backgroundColor: blue[200],
+                  border: '2px solid',
+                  borderColor: blue[500],
+                  borderRadius: '50%',
                 }}
               >
                 {!userData?.profile_pic && userData?.username?.[0]?.toUpperCase()}
               </Avatar>
-              <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
-                {userData?.username || 'User'}
-              </Typography>
-              <Typography variant="body2" sx={{ color: grey[700], mb: 2, textAlign: 'center' }}>
-                {userData?.email || 'user@example.com'}
-              </Typography>
-              <Button
-                variant="contained"
-                color="secondary"
-                onClick={handleAccountSettings}
-                sx={{ marginBottom: '8px', width: '100%' }}
-              >
-                Account Settings
-              </Button>
-              <Button
-                variant="contained"
-                onClick={() =>
-                  window.location.href =
-                    "https://docs.google.com/forms/d/e/1FAIpQLScQUGdmUaG2TzA3NO-pKSHpftlCsgKMgtoaYswbjWtzZocqpA/viewform"
-                }
-                sx={{
-                  marginBottom: '8px',
-                  width: '100%',
-                  backgroundColor: '#ff3d00',
-                  '&:hover': {
-                    backgroundColor: '#e63600'
-                  }
-                }}
-              >
-                System Survey
-              </Button>
-              <Button variant="contained" color="error" onClick={handleLogout} sx={{ width: '100%' }}>
-                Logout
-              </Button>
-            </Box>
-          </Drawer>
-        </>
-      ) : (
-        <>
-          {/* DESKTOP APPBAR & POPOVER (Unchanged from previous design) */}
-          <AppBar
-            position="sticky"
-            elevation={3}
-            sx={{
-              backgroundColor: '#fff',
-              boxShadow: '0px 4px 10px rgba(0,0,0,0.1)',
-              borderRadius: '0 0 8px 8px',
-            }}
-          >
-            <Toolbar sx={{ justifyContent: 'space-between' }}>
-              <Typography variant="h4" component="div" color="primary" sx={{ fontSize: '2rem' }}>
-                <img src="/icons/ailicemascot.png" alt="AILICEMASCOT" style={{ maxHeight: '30px' }} />
-                <img src="/icons/ailiceword.png" alt="AILICE" style={{ maxHeight: '30px' }} />
-              </Typography>
-              <Box display="flex" alignItems="center">
-                {username && (
-                  <>
-                    <Tooltip title="Back">
-                      <IconButton
-                        onClick={() => router.back()}
-                        sx={{ width: 40, height: 40, cursor: 'pointer', marginRight: '10px' }}
-                      >
-                        <ArrowBackIcon sx={{ fontSize: 30, color: blue[500] }} />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title="Home">
-                      <IconButton
-                        onClick={() => router.push('/home')}
-                        sx={{ width: 40, height: 40, cursor: 'pointer', marginRight: '10px' }}
-                      >
-                        <HomeIcon sx={{ fontSize: 30, color: blue[500] }} />
-                      </IconButton>
-                    </Tooltip>
-                    <Box sx={{ display: 'flex', alignItems: 'center', marginRight: '10px', gap: 1 }}>
-                      <Typography variant="body2" color="primary" sx={{ fontWeight: 'bold' }}>
-                        Level {userLevel.level}
-                      </Typography>
-                      <Box sx={{ position: 'relative', width: 100 }}>
-                        <LinearProgress
-                          variant="determinate"
-                          value={(userLevel.currentExp / userLevel.nextExp) * 100}
-                          sx={{ height: 15, borderRadius: 3 }}
-                        />
-                        <Typography
-                          variant="body2"
-                          color="textSecondary"
-                          sx={{
-                            position: 'absolute',
-                            top: 0,
-                            left: '50%',
-                            transform: 'translate(-50%, 0)',
-                            lineHeight: '15px',
-                            fontSize: '0.75rem',
-                            fontWeight: 'bold',
-                            width: '100%',
-                            textAlign: 'center',
-                          }}
-                        >
-                          {userLevel.currentExp}/{userLevel.nextExp}
-                        </Typography>
-                      </Box>
-                    </Box>
-                    <Tooltip title="Profile">
-                      <Avatar
-                        onClick={handleClick}
-                        src={
-                          userData?.profile_pic
-                            ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${userData.profile_pic}`
-                            : undefined
-                        }
-                        sx={{
-                          width: 40,
-                          height: 40,
-                          cursor: 'pointer',
-                          backgroundColor: blue[200],
-                          border: '2px solid',
-                          borderColor: blue[500],
-                          borderRadius: '50%',
-                        }}
-                      >
-                        {!userData?.profile_pic && userData?.username?.[0]?.toUpperCase()}
-                      </Avatar>
-                    </Tooltip>
-                    <Popover
-                      open={openPopover}
-                      anchorEl={anchorEl}
-                      onClose={handleClose}
-                      anchorOrigin={{
-                        vertical: 'bottom',
-                        horizontal: 'center',
-                      }}
-                      transformOrigin={{
-                        vertical: 'top',
-                        horizontal: 'center',
-                      }}
-                      sx={{
-                        '& .MuiPaper-root': {
-                          background: 'linear-gradient(135deg, #E3F2FD, #BBDEFB)',
-                          padding: 2,
-                          borderRadius: '12px',
-                          boxShadow: '0px 4px 10px rgba(0,0,0,0.1)',
-                        },
-                      }}
-                    >
-                      <Box
-                        sx={{
-                          display: 'flex',
-                          flexDirection: 'column',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <Avatar
-                          src={
-                            userData?.profile_pic
-                              ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${userData.profile_pic}`
-                              : undefined
-                          }
-                          sx={{
-                            width: 80,
-                            height: 80,
-                            mb: 2,
-                            backgroundColor: blue[300],
-                          }}
-                        >
-                          {!userData?.profile_pic && userData?.username?.[0]?.toUpperCase()}
-                        </Avatar>
-                        <Typography
-                          variant="h6"
-                          sx={{
-                            fontWeight: 'bold',
-                            fontSize: '1.25rem',
-                            mb: 1,
-                            textAlign: 'center',
-                          }}
-                        >
-                          {userData?.username || 'User'}
-                        </Typography>
-                        <Typography variant="body2" sx={{ color: grey[700], mb: 2, textAlign: 'center' }}>
-                          {userData?.email || 'user@example.com'}
-                        </Typography>
-                        <Button
-                          variant="contained"
-                          color="secondary"
-                          onClick={handleAccountSettings}
-                          sx={{ marginBottom: '8px', width: '100%' }}
-                        >
-                          Account Settings
-                        </Button>
-                        <Button
-                          variant="contained"
-                          onClick={() =>
-                            window.location.href =
-                              "https://docs.google.com/forms/d/e/1FAIpQLScQUGdmUaG2TzA3NO-pKSHpftlCsgKMgtoaYswbjWtzZocqpA/viewform"
-                          }
-                          sx={{
-                            marginBottom: '8px',
-                            width: '100%',
-                            backgroundColor: '#ff3d00',
-                            '&:hover': {
-                              backgroundColor: '#e63600'
-                            }
-                          }}
-                        >
-                          System Survey
-                        </Button>
-                        <Button variant="contained" color="error" onClick={handleLogout} sx={{ width: '100%' }}>
-                          Logout
-                        </Button>
-                      </Box>
-                    </Popover>
-                  </>
-                )}
-              </Box>
-            </Toolbar>
-          </AppBar>
-        </>
-      )}
+            }
+            onClick={handleClick}
+            sx={{ minWidth: 'auto', padding: 0 }}
+          />
+          <BottomNavigationAction
+            icon={<ArrowBackIcon sx={{ fontSize: 30, color: blue[500] }} />}
+            onClick={() => window.history.back()}
+            sx={{ minWidth: 'auto' }}
+          />
+        </BottomNavigation>
 
-      <main>
-        {userId && <input type="hidden" value={userId} />}
-        {children}
-      </main>
-
-      <IconButton
-        onClick={() => {
-          if (!isButtonDisabled) {
-            setIsChatOpen(!isChatOpen);
-          }
-        }}
-        disabled={isButtonDisabled}
-        sx={{
-          width: 60,
-          height: 60,
-          position: 'fixed',
-          bottom: isMobile ? 80 : 20,
-          right: 20,
-          backgroundColor: theme.palette.primary.main,
-          boxShadow: '0px 4px 10px rgba(0,0,0,0.3)',
-          borderRadius: '50%',
-          '&:hover': { backgroundColor: theme.palette.primary.dark },
-          zIndex: theme.zIndex.drawer - 1,
-        }}
-      >
-        <ChatIcon sx={{ fontSize: 30, color: '#fff' }} />
-      </IconButton>
-
-      {/* Updated Chat Box */}
-      {isChatOpen && (
-        <Box
-          sx={{
-            position: 'fixed',
-            bottom: isMobile ? 80 : 20,
-            right: isMobile ? 0 : 20,
-            width: isMobile ? '100%' : 350,
-            height: isMobile ? 'calc(100vh - 80px)' : 600,
-            borderRadius: isMobile ? 0 : '16px',
-            backgroundColor: '#fff',
-            boxShadow: '0px 8px 20px rgba(0,0,0,0.2)',
-            overflow: 'hidden',
-            display: 'flex',
-            flexDirection: 'column',
-            zIndex: theme.zIndex.drawer,
-            transition: 'all 0.3s ease-in-out',
+        <Drawer
+          anchor="bottom"
+          open={openPopover}
+          onClose={handleClose}
+          PaperProps={{
+            sx: {
+              borderRadius: '12px 12px 0 0',
+              background: 'linear-gradient(135deg, #E3F2FD, #BBDEFB)',
+              p: 2,
+              boxShadow: '0px -4px 10px rgba(0, 0, 0, 0.1)',
+            },
           }}
         >
-          {/* Chat Box Header */}
           <Box
             sx={{
-              background: 'linear-gradient(90deg, #2196F3, #21CBF3)',
-              p: 2,
               display: 'flex',
-              justifyContent: 'space-between',
+              flexDirection: 'column',
               alignItems: 'center',
             }}
           >
-            <Typography variant="h6" sx={{ color: '#fff' }}>
-              AILice Chat
-            </Typography>
-            <Box>
-              <IconButton onClick={clearChat} title="Clear Chat">
-                <DeleteIcon sx={{ color: '#fff' }} />
-              </IconButton>
-              <IconButton onClick={() => setIsChatOpen(false)} title="Close Chat">
-                <CloseIcon sx={{ color: '#fff' }} />
-              </IconButton>
-            </Box>
-          </Box>
-
-          {/* Chat Messages Container */}
-          <Box
-            ref={chatContainerRef}
-            sx={{
-              flex: 1,
-              p: 2,
-              overflowY: 'auto',
-              backgroundColor: '#f7f7f7',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 2,
-            }}
-          >
-            {messages.map((message, index) => (
-              <Typography
-                key={index}
-                align={message.sender === 'user' ? 'right' : 'left'}
-                sx={{
-                  backgroundColor: message.sender === 'user' ? blue[400] : 'lightgray',
-                  color: message.sender === 'user' ? '#fff' : '#000',
-                  padding: '8px',
-                  borderRadius: '8px',
-                  alignSelf: message.sender === 'user' ? 'flex-end' : 'flex-start',
-                  maxWidth: '75%',
-                  wordBreak: 'break-word',
-                }}
-              >
-                {message.sender === 'user'
-                  ? `${userData?.username || 'You'}: ${message.text}`
-                  : `AILice: ${message.text}`}
-              </Typography>
-            ))}
-            {isLoading && (
-              <Skeleton variant="rectangular" height={50} sx={{ margin: '8px 0', borderRadius: 2 }} />
-            )}
-            {!isLoading && typingResponse && (
-              <Typography
-                align="left"
-                sx={{
-                  backgroundColor: 'lightgray',
-                  color: '#000',
-                  padding: '8px',
-                  borderRadius: '8px',
-                  alignSelf: 'flex-start',
-                  maxWidth: '75%',
-                  wordBreak: 'break-word',
-                }}
-              >
-                {`AILice: ${typingResponse}`}
-              </Typography>
-            )}
-          </Box>
-
-          {/* Input Field and Send Button */}
-          <Box sx={{ p: 2, borderTop: '1px solid #eee', backgroundColor: '#fff' }}>
-            <TextField
-              fullWidth
-              variant="outlined"
-              placeholder="Type a message..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !isLoading && typingResponse === '') {
-                  e.preventDefault();
-                  sendMessage();
-                }
-              }}
-              multiline
-              rows={1}
-              maxRows={6}
-              sx={{ mb: 2 }}
-            />
-            <Button
-              variant="contained"
-              onClick={sendMessage}
-              disabled={!input.trim() || isLoading || typingResponse !== ''}
-              fullWidth
+            <IconButton sx={{ alignSelf: 'flex-end' }} onClick={handleClose}>
+              <CloseIcon />
+            </IconButton>
+            <Avatar
+              src={
+                userData?.profile_pic
+                  ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${userData.profile_pic}`
+                  : undefined
+              }
               sx={{
-                borderRadius: 2,
-                py: 1.5,
-                fontSize: '1rem',
-                backgroundColor: theme.palette.primary.main,
-                '&:hover': { backgroundColor: theme.palette.primary.dark },
+                width: 80,
+                height: 80,
+                mb: 1,
+                backgroundColor: blue[300],
               }}
             >
-              Send
+              {!userData?.profile_pic && userData?.username?.[0]?.toUpperCase()}
+            </Avatar>
+            <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+              {userData?.username || 'User'}
+            </Typography>
+            <Typography variant="body2" sx={{ color: grey[700], mb: 2, textAlign: 'center' }}>
+              {userData?.email || 'user@example.com'}
+            </Typography>
+            <Button
+              variant="text"
+              onClick={handleAccountSettings}
+              sx={{
+                width: '100%',
+                color: 'text.primary',
+                textTransform: 'none',
+              }}
+            >
+              Account Settings
+            </Button>
+            <Divider sx={{ width: '100%', my: 1, borderStyle: 'dashed' }} />
+            <Button
+              variant="text"
+              onClick={() =>
+                window.location.href =
+                  "https://docs.google.com/forms/d/e/1FAIpQLScQUGdmUaG2TzA3NO-pKSHpftlCsgKMgtoaYswbjWtzZocqpA/viewform"
+              }
+              sx={{
+                width: '100%',
+                color: 'text.primary',
+                textTransform: 'none',
+              }}
+            >
+              System Survey
+            </Button>
+            <Divider sx={{ width: '100%', my: 1, borderStyle: 'dashed' }} />
+            <Button
+              variant="text"
+              onClick={handleLogout}
+              sx={{
+                width: '100%',
+                color: 'red',
+                textTransform: 'none',
+              }}
+            >
+              Logout
             </Button>
           </Box>
+        </Drawer>
+      </Box>
+    </>
+  ) : (
+    <>
+      {/* DESKTOP APPBAR & POPOVER (Unchanged from previous design) */}
+      <AppBar
+        position="sticky"
+        elevation={3}
+        sx={{
+          backgroundColor: '#fff',
+          boxShadow: '0px 4px 10px rgba(0,0,0,0.1)',
+          borderRadius: '0 0 8px 8px',
+        }}
+      >
+        <Toolbar sx={{ justifyContent: 'space-between' }}>
+          <Typography variant="h4" component="div" color="primary" sx={{ fontSize: '2rem' }}>
+            <img src="/icons/ailicemascot.png" alt="AILICEMASCOT" style={{ maxHeight: '30px' }} />
+            <img src="/icons/ailiceword.png" alt="AILICE" style={{ maxHeight: '30px' }} />
+          </Typography>
+          <Box display="flex" alignItems="center">
+            {username && (
+              <>
+                <Tooltip title="Back">
+                  <IconButton
+                    onClick={() => router.back()}
+                    sx={{ width: 40, height: 40, cursor: 'pointer', marginRight: '10px' }}
+                  >
+                    <ArrowBackIcon sx={{ fontSize: 30, color: blue[500] }} />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Home">
+                  <IconButton
+                    onClick={() => router.push('/home')}
+                    sx={{ width: 40, height: 40, cursor: 'pointer', marginRight: '10px' }}
+                  >
+                    <HomeIcon sx={{ fontSize: 30, color: blue[500] }} />
+                  </IconButton>
+                </Tooltip>
+                <Box sx={{ display: 'flex', alignItems: 'center', marginRight: '10px', gap: 1 }}>
+                  <Typography variant="body2" color="primary" sx={{ fontWeight: 'bold' }}>
+                    Level {userLevel.level}
+                  </Typography>
+                  <Box sx={{ position: 'relative', width: 100 }}>
+                    <LinearProgress
+                      variant="determinate"
+                      value={(userLevel.currentExp / userLevel.nextExp) * 100}
+                      sx={{ height: 15, borderRadius: 3 }}
+                    />
+                    <Typography
+                      variant="body2"
+                      color="textSecondary"
+                      sx={{
+                        position: 'absolute',
+                        top: 0,
+                        left: '50%',
+                        transform: 'translate(-50%, 0)',
+                        lineHeight: '15px',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        width: '100%',
+                        textAlign: 'center',
+                      }}
+                    >
+                      {userLevel.currentExp}/{userLevel.nextExp}
+                    </Typography>
+                  </Box>
+                </Box>
+                <Tooltip title="Profile">
+                  <Avatar
+                    onClick={handleClick}
+                    src={
+                      userData?.profile_pic
+                        ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${userData.profile_pic}`
+                        : undefined
+                    }
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      cursor: 'pointer',
+                      backgroundColor: blue[200],
+                      border: '2px solid',
+                      borderColor: blue[500],
+                      borderRadius: '50%',
+                    }}
+                  >
+                    {!userData?.profile_pic && userData?.username?.[0]?.toUpperCase()}
+                  </Avatar>
+                </Tooltip>
+                <Popover
+                  open={openPopover}
+                  anchorEl={anchorEl}
+                  onClose={handleClose}
+                  anchorOrigin={{
+                    vertical: 'bottom',
+                    horizontal: 'center',
+                  }}
+                  transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'center',
+                  }}
+                  sx={{
+                    '& .MuiPaper-root': {
+                      background: 'linear-gradient(135deg, #E3F2FD, #BBDEFB)',
+                      padding: 2,
+                      borderRadius: '12px',
+                      boxShadow: '0px 4px 10px rgba(0,0,0,0.1)',
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Avatar
+                      src={
+                        userData?.profile_pic
+                          ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${userData.profile_pic}`
+                          : undefined
+                      }
+                      sx={{
+                        width: 80,
+                        height: 80,
+                        mb: 2,
+                        backgroundColor: blue[300],
+                      }}
+                    >
+                      {!userData?.profile_pic && userData?.username?.[0]?.toUpperCase()}
+                    </Avatar>
+                    <Typography
+                      variant="h6"
+                      sx={{
+                        fontWeight: 'bold',
+                        fontSize: '1.25rem',
+                        mb: 1,
+                        textAlign: 'center',
+                      }}
+                    >
+                      {userData?.username || 'User'}
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: grey[700], mb: 2, textAlign: 'center' }}>
+                      {userData?.email || 'user@example.com'}
+                    </Typography>
+                    <Button
+                      variant="text"
+                      onClick={handleAccountSettings}
+                      sx={{
+                        width: '100%',
+                        color: 'text.primary',
+                        textTransform: 'none',
+                      }}
+                    >
+                      Account Settings
+                    </Button>
+                    <Divider sx={{ width: '100%', my: 1, borderStyle: 'dashed' }} />
+                    <Button
+                      variant="text"
+                      onClick={() =>
+                        window.location.href =
+                          "https://docs.google.com/forms/d/e/1FAIpQLScQUGdmUaG2TzA3NO-pKSHpftlCsgKMgtoaYswbjWtzZocqpA/viewform"
+                      }
+                      sx={{
+                        width: '100%',
+                        color: 'text.primary',
+                        textTransform: 'none',
+                      }}
+                    >
+                      System Survey
+                    </Button>
+                    <Divider sx={{ width: '100%', my: 1, borderStyle: 'dashed' }} />
+                    <Button
+                      variant="text"
+                      onClick={handleLogout}
+                      sx={{
+                        width: '100%',
+                        color: 'red',
+                        textTransform: 'none',
+                      }}
+                    >
+                      Logout
+                    </Button>
+                  </Box>
+                </Popover>
+              </>
+            )}
+          </Box>
+        </Toolbar>
+      </AppBar>
+    </>
+  )}
+
+  <main>
+    {userId && <input type="hidden" value={userId} />}
+    {children}
+  </main>
+
+  <IconButton
+    onClick={() => {
+      if (!isButtonDisabled) {
+        setIsChatOpen(!isChatOpen);
+      }
+    }}
+    disabled={isButtonDisabled}
+    sx={{
+      width: 60,
+      height: 60,
+      position: 'fixed',
+      bottom: isMobile ? 80 : 20,
+      right: 20,
+      backgroundColor: theme.palette.primary.main,
+      boxShadow: '0px 4px 10px rgba(0,0,0,0.3)',
+      borderRadius: '50%',
+      '&:hover': { backgroundColor: theme.palette.primary.dark },
+      zIndex: theme.zIndex.drawer - 1,
+    }}
+  >
+    <ChatIcon sx={{ fontSize: 30, color: '#fff' }} />
+  </IconButton>
+
+  {/* Updated Chat Box */}
+  {isChatOpen && (
+    <Box
+      sx={{
+        position: 'fixed',
+        bottom: isMobile ? 80 : 20,
+        right: isMobile ? 0 : 20,
+        width: isMobile ? '100%' : 350,
+        height: isMobile ? 'calc(100vh - 80px)' : 600,
+        borderRadius: isMobile ? 0 : '16px',
+        backgroundColor: '#fff',
+        boxShadow: '0px 8px 20px rgba(0,0,0,0.2)',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        zIndex: theme.zIndex.drawer,
+        transition: 'all 0.3s ease-in-out',
+      }}
+    >
+      {/* Chat Box Header */}
+      <Box
+        sx={{
+          background: 'linear-gradient(90deg, #2196F3, #21CBF3)',
+          p: 2,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <Typography variant="h6" sx={{ color: '#fff' }}>
+          AILice Chat
+        </Typography>
+        <Box>
+          <IconButton onClick={clearChat} title="Clear Chat">
+            <DeleteIcon sx={{ color: '#fff' }} />
+          </IconButton>
+          <IconButton onClick={() => setIsChatOpen(false)} title="Close Chat">
+            <CloseIcon sx={{ color: '#fff' }} />
+          </IconButton>
         </Box>
-      )}
-    </ThemeProvider>
+      </Box>
+
+      {/* Chat Messages Container */}
+      <Box
+        ref={chatContainerRef}
+        sx={{
+          flex: 1,
+          p: 2,
+          overflowY: 'auto',
+          backgroundColor: '#f7f7f7',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+        }}
+      >
+        {messages.map((message, index) => (
+          <Typography
+            key={index}
+            align={message.sender === 'user' ? 'right' : 'left'}
+            sx={{
+              backgroundColor: message.sender === 'user' ? blue[400] : 'lightgray',
+              color: message.sender === 'user' ? '#fff' : '#000',
+              padding: '8px',
+              borderRadius: '8px',
+              alignSelf: message.sender === 'user' ? 'flex-end' : 'flex-start',
+              maxWidth: '75%',
+              wordBreak: 'break-word',
+            }}
+          >
+            {message.sender === 'user'
+              ? `${userData?.username || 'You'}: ${message.text}`
+              : `AILice: ${message.text}`}
+          </Typography>
+        ))}
+        {isLoading && (
+          <Skeleton variant="rectangular" height={50} sx={{ margin: '8px 0', borderRadius: 2 }} />
+        )}
+        {!isLoading && typingResponse && (
+          <Typography
+            align="left"
+            sx={{
+              backgroundColor: 'lightgray',
+              color: '#000',
+              padding: '8px',
+              borderRadius: '8px',
+              alignSelf: 'flex-start',
+              maxWidth: '75%',
+              wordBreak: 'break-word',
+            }}
+          >
+            {`AILice: ${typingResponse}`}
+          </Typography>
+        )}
+      </Box>
+
+      {/* Input Field and Send Button */}
+      <Box sx={{ p: 2, borderTop: '1px solid #eee', backgroundColor: '#fff' }}>
+        <TextField
+          fullWidth
+          variant="outlined"
+          placeholder="Type a message..."
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey && !isLoading && typingResponse === '') {
+              e.preventDefault();
+              sendMessage();
+            }
+          }}
+          multiline
+          rows={1}
+          maxRows={6}
+          sx={{ mb: 2 }}
+        />
+        <Button
+          variant="contained"
+          onClick={sendMessage}
+          disabled={!input.trim() || isLoading || typingResponse !== ''}
+          fullWidth
+          sx={{
+            borderRadius: 2,
+            py: 1.5,
+            fontSize: '1rem',
+            backgroundColor: theme.palette.primary.main,
+            '&:hover': { backgroundColor: theme.palette.primary.dark },
+          }}
+        >
+          Send
+        </Button>
+      </Box>
+    </Box>
+  )}
+</ThemeProvider>
   );
 }
