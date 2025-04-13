@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   // Fetch user data including profile_pic, username, email, and exp
   const { data, error } = await supabase
     .from('users')
-    .select('id, username, email, profile_pic, exp, visibility')
+    .select('id, username, email, profile_pic, exp, visibility, role')
     .eq('id', userId)
     .single();
 
@@ -34,5 +34,6 @@ export async function GET(req: NextRequest) {
     profile_pic: data.profile_pic || null,
     exp: data.exp || 0,
     visibility: data.visibility,
+    role: data.role,
   });
 }

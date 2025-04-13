@@ -916,70 +916,86 @@ useEffect(() => {
             )}
             {selectedTrial && (
               <>
-                {ongoingTrial ? (
-                  ongoingTrial.trial_id === selectedTrial.id ? (
-                    <Button
-                      disabled={isProcessing}
-                      sx={{
-                        p: 1,
-                        backgroundColor: "orange",
-                        color: "#fff",
-                        textTransform: "none",
-                        borderRadius: "8px",
-                        "&:hover": { backgroundColor: "#cc7000" },
-                      }}
-                      onClick={resumeTrial}
-                    >
-                      <PlayArrowIcon sx={{ mr: 1 }} />
-                      Resume
-                    </Button>
-                  ) : (
-                    <Button
-                      disabled
-                      sx={{
-                        p: 1,
-                        backgroundColor: "grey",
-                        color: "#fff",
-                        textTransform: "none",
-                        borderRadius: "8px",
-                      }}
-                    >
-                      <PlayArrowIcon sx={{ mr: 1 }} />
-                      Another trial is in progress
-                    </Button>
-                  )
-                ) : finishedTrialExists ? (
+                {/* If the user has already attempted the trial, disable any trial starting/resuming */}
+                {attempted ? (
                   <Button
-                    disabled={isProcessing}
+                    disabled
                     sx={{
                       p: 1,
-                      backgroundColor: "error.main",
-                      color: "error.contrastText",
+                      backgroundColor: "grey.500",
+                      color: "#fff",
                       textTransform: "none",
                       borderRadius: "8px",
-                      "&:hover": { backgroundColor: "error.dark" },
                     }}
-                    onClick={() => startTrial(selectedTrial.id)}
                   >
-                    <PlayArrowIcon sx={{ mr: 1 }} />
-                    Retry
+                    Attempted
                   </Button>
                 ) : (
-                  <Button
-                    disabled={isProcessing}
-                    sx={{
-                      p: 1,
-                      backgroundColor: "success.main",
-                      color: "success.contrastText",
-                      textTransform: "none",
-                      borderRadius: "8px",
-                      "&:hover": { backgroundColor: "success.dark" },
-                    }}
-                    onClick={() => startTrial(selectedTrial.id)}
-                  >
-                    <PlayArrowIcon sx={{ mr: 1 }} />
-                    {selectedTrial.trial_title}
-                  </Button>
+                  <>
+                    {ongoingTrial ? (
+                      ongoingTrial.trial_id === selectedTrial.id ? (
+                        <Button
+                          disabled={isProcessing}
+                          sx={{
+                            p: 1,
+                            backgroundColor: "orange",
+                            color: "#fff",
+                            textTransform: "none",
+                            borderRadius: "8px",
+                            "&:hover": { backgroundColor: "#cc7000" },
+                          }}
+                          onClick={resumeTrial}
+                        >
+                          <PlayArrowIcon sx={{ mr: 1 }} />
+                          Resume
+                        </Button>
+                      ) : (
+                        <Button
+                          disabled
+                          sx={{
+                            p: 1,
+                            backgroundColor: "grey",
+                            color: "#fff",
+                            textTransform: "none",
+                            borderRadius: "8px",
+                          }}
+                        >
+                          <PlayArrowIcon sx={{ mr: 1 }} />
+                          Another trial is in progress
+                        </Button>
+                      )
+                    ) : finishedTrialExists ? (
+                      // If user already finished the trial (attempted), disable retry, though this branch shouldn't be reached because attempted is true.
+                      <Button
+                        disabled={true}
+                        sx={{
+                          p: 1,
+                          backgroundColor: "grey.500",
+                          color: "#fff",
+                          textTransform: "none",
+                          borderRadius: "8px",
+                        }}
+                      >
+                        Attempted
+                      </Button>
+                    ) : (
+                      <Button
+                        disabled={isProcessing}
+                        sx={{
+                          p: 1,
+                          backgroundColor: "success.main",
+                          color: "success.contrastText",
+                          textTransform: "none",
+                          borderRadius: "8px",
+                          "&:hover": { backgroundColor: "success.dark" },
+                        }}
+                        onClick={() => startTrial(selectedTrial.id)}
+                      >
+                        <PlayArrowIcon sx={{ mr: 1 }} />
+                        {selectedTrial.trial_title}
+                      </Button>
+                    )}
+                  </>
                 )}
               </>
             )}

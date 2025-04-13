@@ -79,7 +79,8 @@ export async function GET(
       username: record.username,
       password: hashedPassword,
       visibility: 'Public',
-      device: [record.device]
+      device: [record.device],
+      role: 'Student'
     }]);
   if (insertError) {
     const insertErrorHtml = `

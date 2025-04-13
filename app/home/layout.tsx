@@ -100,19 +100,27 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
   // Session check and user data fetch (runs on mount and on custom events)
   useEffect(() => {
     let isCooldown = false; // Prevent repeated calls in a short period
-
+  
     const handleAction = async () => {
       if (isCooldown) return;
       isCooldown = true;
-
+  
       try {
         // Check session and get user data
         const res = await fetch('/api/check-auth');
         if (res.ok) {
           const data = await res.json();
+  
+          // If the user's role is Admin, redirect to /adminhome and exit
+          if (data.role === 'Admin') {
+            router.push('/adminhome');
+            return;
+          }
+  
+          // Otherwise, proceed normally (for example, if the role is Student)
           setUsername(data.username);
           setUserId(data.id);
-
+  
           // Fetch additional user data details:
           if (data.profile_pic) {
             data.profile_pic_url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${data.profile_pic}`;
@@ -121,28 +129,28 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
           const levelData = calculateLevel(data.exp);
           setUserLevel(levelData);
           setUserData(data);
-
+  
           // Check if there is an active trial for the user
           const { data: trialData, error } = await supabase
             .from('trial_data')
             .select('*')
             .eq('user_id', data.id)
             .eq('status', 'Ongoing');
-
+  
           if (error) {
             console.error('Error fetching trial data:', error);
           }
-
+  
           if (trialData && trialData.length > 0) {
             const nowManila = new Date(
               new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" })
             ).getTime();
-
+  
             const activeTrialExists = trialData.some(trial => {
               const trialEndTime = new Date(trial.end_time).getTime();
               return nowManila < trialEndTime;
             });
-
+  
             setIsButtonDisabled(activeTrialExists);
           } else {
             setIsButtonDisabled(false);
@@ -156,18 +164,19 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
         console.error('Error during session check:', error);
         router.push('/');
       }
-
+  
       setTimeout(() => {
         isCooldown = false;
       }, 5000);
     };
-
+  
     document.addEventListener('childAction', handleAction);
     handleAction();
     return () => {
       document.removeEventListener('childAction', handleAction);
     };
   }, [router]);
+  
 
   // Restore saved chat messages and restricted questions from localStorage
   useEffect(() => {
