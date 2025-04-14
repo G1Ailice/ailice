@@ -318,10 +318,9 @@ const TrialPage = () => {
   const finishSubmissionCalledRef = useRef(false);
 
   const finishSubmission = async (overrideRemaining?: number) => {
-
     if (finishSubmissionCalledRef.current) return;
     finishSubmissionCalledRef.current = true;
-
+  
     if (timerRef.current) {
       clearInterval(timerRef.current);
       timerRef.current = null;
@@ -373,6 +372,7 @@ const TrialPage = () => {
       ]);
     }
   
+    // Apply penalty for tab switching.
     if (tabSwitched) {
       totalPoints = Math.floor(totalPoints * 0.8);
     }
@@ -401,14 +401,16 @@ const TrialPage = () => {
     const expGain = trialInfo.exp_gain ? Number(trialInfo.exp_gain) : 0;
     const gainedExpStars = (starCount / 3) * expGain;
   
+    // Count previous attempts.
     const { count: attemptCount } = await supabase
       .from("trial_data")
       .select("id", { count: "exact", head: true })
       .eq("trial_id", trialId)
       .eq("user_id", userId);
   
+    // Add bonus experience if this is the first attempt.
     const bonusExp =
-      attemptCount === 1 && trialInfo.first_exp ? Number(trialInfo.first_exp) : 0;
+      (attemptCount ?? 0) === 1 && trialInfo.first_exp ? Number(trialInfo.first_exp) : 0;
     const totalExpGained = gainedExpStars + bonusExp;
   
     const { data: userRecord } = await supabase
@@ -422,34 +424,11 @@ const TrialPage = () => {
   
     setGainedExp(totalExpGained);
   
+    // Modify the attempt message logic: allow max. 2 attempts without deleting any previous attempts.
     let localAttemptMessage = "";
-    const { data: allAttempts } = await supabase
-      .from("trial_data")
-      .select("id, eval_score")
-      .eq("trial_id", trialId)
-      .eq("user_id", userId);
-  
-    if (allAttempts && allAttempts.length >= 2) {
-      const attempts = allAttempts.map((att) => ({
-        id: att.id,
-        eval: parseFloat(att.eval_score) || 0,
-      }));
-      const maxEval = Math.max(...attempts.map((a) => a.eval));
-      const bestAttempts = attempts.filter((a) => a.eval === maxEval);
-      let attemptsToDelete: { id: string; eval: number }[] = [];
-      if (bestAttempts.length > 1) {
-        attemptsToDelete = bestAttempts.slice(1);
-      }
-      const lowerAttempts = attempts.filter((a) => a.eval < maxEval);
-      attemptsToDelete = attemptsToDelete.concat(lowerAttempts);
-  
-      for (const att of attemptsToDelete) {
-        await supabase.from("q_data").delete().eq("t_dataid", att.id);
-        await supabase.from("trial_data").delete().eq("id", att.id);
-      }
-      localAttemptMessage = attemptsToDelete.some((a) => a.id === trial_dataId)
-        ? "Try again next time"
-        : "You beat your previous attempt";
+    if ((attemptCount ?? 0) >= 2) {
+      // This is the second (or later) attempt. You can display a message indicating that no deletion occurs.
+      localAttemptMessage = "This is your second attempt.";
     } else {
       localAttemptMessage = "Good job completing the trial";
     }
@@ -457,7 +436,7 @@ const TrialPage = () => {
     setFinalScore(totalPoints);
     setAttemptMessage(localAttemptMessage);
   
-    // --- Hidden Achievement Condition Fix ---
+    // --- Hidden Achievement Section remains unchanged ---
     if (trialInfo.hd_achv_id) {
       const { data: existingAcv } = await supabase
         .from("user_acv")
@@ -481,18 +460,10 @@ const TrialPage = () => {
         let hiddenAchieved = false;
         try {
           const score = totalPoints;
-          // Use remainingTime (or 0 if falsy) to ensure proper evaluation.
           const effectiveTimeRemaining = finalRemainingValue || 0;
           const timeAllocated = allocatedTime;
           const allScoreVal = trialInfo.allscore;
-          const { count: attemptCount } = await supabase
-            .from("trial_data")
-            .select("id", { count: "exact", head: true })
-            .eq("trial_id", trialId)
-            .eq("user_id", userId);
-          // Ensure your hd_condition string in the database accounts for the possibility of timeRemaining being 0.
-          // For example, your condition could be:
-          // "(!timeRemaining || timeRemaining === 0) && score === 0"
+          // Use (attemptCount ?? 0) to ensure a number is passed.
           hiddenAchieved = Function(
             "score",
             "timeRemaining",
@@ -500,7 +471,7 @@ const TrialPage = () => {
             "allScoreVal",
             "attemptCount",
             "return " + trialInfo.hd_condition
-          )(score, effectiveTimeRemaining, timeAllocated, allScoreVal, attemptCount);
+          )(score, effectiveTimeRemaining, timeAllocated, allScoreVal, (attemptCount ?? 0));
         } catch (e) {
           console.error("Error evaluating hidden achievement condition:", e);
         }
@@ -529,8 +500,9 @@ const TrialPage = () => {
         }
       }
     }
-    // --- End of Hidden Achievement Fix ---
+    // --- End of Hidden Achievement Section ---
   
+    // Clean up saved progress.
     localStorage.removeItem(questionOrderKey);
     localStorage.removeItem(userAnswersKey);
     localStorage.removeItem(currentIndexKey);
@@ -541,7 +513,7 @@ const TrialPage = () => {
     setIsSubmitting(false);
   
     triggerAction();
-  };  
+  };   
 
   const triggerAction = () => {
     const event = new Event("childAction");

@@ -61,6 +61,7 @@ const LessonsPage = () => {
   const [openRankingDialog, setOpenRankingDialog] = useState<boolean>(false);
   const [rankingData, setRankingData] = useState<any[]>([]);
   const [unlockedLessons, setUnlockedLessons] = useState<Record<string, boolean>>({});
+  const [attemptsLeft, setAttemptsLeft] = useState<number>(2);
   const [hiddenAchvDetails, setHiddenAchvDetails] = useState<{
     id: string;
     name: string;
@@ -90,94 +91,72 @@ const LessonsPage = () => {
   }, [router]);
 
  // 2. Check unlocked lessons (for Locked and Final lessons)
-useEffect(() => {
-  if (!currentUser || lessons.length === 0) return;
+  useEffect(() => {
+    if (!currentUser || lessons.length === 0) return;
 
-  const checkUnlockedLessons = async () => {
-    const newUnlockedLessons: Record<string, boolean> = {};
+    const checkUnlockedLessons = async () => {
+      const newUnlockedLessons: Record<string, boolean> = {};
 
-    // Filter lessons that require a check
-    const lockedLessons = lessons.filter(
-      (lesson) => lesson.status === "Locked" || lesson.status === "Final"
-    );
+      // Utility: calculate level from exp.
+      const calculateLevel = (exp: number | null) => {
+        if (!exp || exp <= 0) return { level: 1, currentExp: 0, nextExp: 100 };
+        let level = 1;
+        let expNeeded = 100;
+        while (exp >= expNeeded && level < 100) {
+          exp -= expNeeded;
+          level++;
+          expNeeded += 50;
+        }
+        return { level, currentExp: exp, nextExp: expNeeded };
+      };
 
-    // Collect unique trial IDs from these lessons (skip falsy values)
-    const trialIds = Array.from(
-      new Set(lockedLessons.map((lesson) => lesson.unlocked_by).filter(Boolean))
-    );
-
-    // Fetch all trial_data records for current user for these trial IDs in one query
-    const { data: trialDataRecords, error } = await supabase
-      .from("trial_data")
-      .select("trial_id, eval_score, star")
-      .eq("user_id", currentUser.id)
-      .in("trial_id", trialIds);
-
-    let trialDataByTrialId: Record<string, { eval_score: number; star: number }> = {};
-    if (!error && trialDataRecords && trialDataRecords.length > 0) {
-      // For each trial id, determine the best record (highest eval_score)
-      trialIds.forEach((trialId) => {
-        const recordsForTrial = trialDataRecords.filter(
-          (record: any) => record.trial_id === trialId
-        );
-        if (recordsForTrial.length > 0) {
-          const bestRecord = recordsForTrial.reduce((prev: any, curr: any) =>
-            curr.eval_score > prev.eval_score ? curr : prev
+      for (const lesson of lessons) {
+        if (lesson.status === "Locked" || lesson.status === "Final") {
+          const trialIdToCheck = lesson.unlocked_by;
+          if (!trialIdToCheck) {
+            newUnlockedLessons[lesson.id] = false;
+            continue;
+          }
+          // Get all finished trial records for this trial from finishedTrials.
+          const trialRecords = finishedTrials.filter(
+            (record: any) => record.trial_id === trialIdToCheck
           );
-          trialDataByTrialId[trialId] = bestRecord;
-        }
-      });
-    }
-
-    // Utility: calculate level from exp.
-    const calculateLevel = (exp: number | null) => {
-      if (!exp || exp <= 0) return { level: 1, currentExp: 0, nextExp: 100 };
-      let level = 1;
-      let expNeeded = 100;
-      while (exp >= expNeeded && level < 100) {
-        exp -= expNeeded;
-        level++;
-        expNeeded += 50;
-      }
-      return { level, currentExp: exp, nextExp: expNeeded };
-    };
-
-    // Now loop through all lessons to set unlocked status
-    for (const lesson of lessons) {
-      if (lesson.status === "Locked" || lesson.status === "Final") {
-        const trialIdToCheck = lesson.unlocked_by;
-        if (!trialIdToCheck) {
-          newUnlockedLessons[lesson.id] = false;
-          continue;
-        }
-        const bestRecord = trialDataByTrialId[trialIdToCheck];
-        if (!bestRecord) {
-          newUnlockedLessons[lesson.id] = false;
-          continue;
-        }
-        if (bestRecord.star >= 2) {
-          if (!lesson.level_req) {
+          // If there are 2 attempts for this trial, unlock immediately.
+          if (trialRecords.length >= 2) {
             newUnlockedLessons[lesson.id] = true;
+            continue;
+          }
+          // Otherwise, if there is a record try to validate based on star.
+          if (trialRecords.length > 0) {
+            const bestRecord = trialRecords.reduce((prev: any, curr: any) =>
+              curr.eval_score > prev.eval_score ? curr : prev
+            );
+            if (bestRecord.star >= 2) {
+              if (!lesson.level_req) {
+                newUnlockedLessons[lesson.id] = true;
+              } else {
+                const requiredLevel = Number(lesson.level_req);
+                const userExp = Number(currentUser.exp);
+                const userLevelData = calculateLevel(userExp);
+                newUnlockedLessons[lesson.id] = userLevelData.level >= requiredLevel;
+              }
+            } else {
+              newUnlockedLessons[lesson.id] = false;
+            }
           } else {
-            const requiredLevel = Number(lesson.level_req);
-            const userExp = Number(currentUser.exp);
-            const userLevelData = calculateLevel(userExp);
-            newUnlockedLessons[lesson.id] = userLevelData.level >= requiredLevel;
+            newUnlockedLessons[lesson.id] = false;
           }
         } else {
-          newUnlockedLessons[lesson.id] = false;
+          // Lessons that are not Locked or Final are always unlocked.
+          newUnlockedLessons[lesson.id] = true;
         }
-      } else {
-        // Lessons that are not Locked or Final are always unlocked.
-        newUnlockedLessons[lesson.id] = true;
       }
-    }
-    setUnlockedLessons(newUnlockedLessons);
-  };
+      setUnlockedLessons(newUnlockedLessons);
+    };
 
-  checkUnlockedLessons();
-}, [currentUser, lessons]);
-
+    // Include finishedTrials as a dependency so the check runs again when finishedTrials change.
+    checkUnlockedLessons();
+  }, [currentUser, lessons, finishedTrials]);
 
   // 3. Remove expired trials
   useEffect(() => {
@@ -466,16 +445,23 @@ useEffect(() => {
     fetchHiddenAchievementDetails();
   }, [selectedTrial, currentUser]);
 
-  // 8. Instantly compute and display star rating, trial score, and time concluded
-  //     using the already fetched finishedTrials state.
+  // 8. Compute and display trial result and show attempts left.
   useEffect(() => {
     if (dialogOpen && selectedTrial) {
+      // Get finished trial records for this trial.
       const trialRecords = finishedTrials.filter(
         (ft: any) => ft.trial_id === selectedTrial.id
       );
+      // Calculate attempts left (max 2 attempts allowed).
+      const remaining = Math.max(2 - trialRecords.length, 0);
+      setAttemptsLeft(remaining);
+
       if (trialRecords.length > 0) {
-        trialRecords.sort((a, b) => b.score - a.score);
-        const bestRecord = trialRecords[0];
+        // If more than one attempt, pick the best result.
+        const sortedRecords = trialRecords.sort((a, b) => b.eval_score - a.eval_score);
+        const bestRecord = sortedRecords[0];
+
+        // Set the various display states.
         setAttempted(true);
         setStarRating(bestRecord.star || 0);
         setTrialScore(bestRecord.score || 0);
@@ -489,18 +475,16 @@ useEffect(() => {
     }
   }, [dialogOpen, selectedTrial, finishedTrials]);
 
-  // --- Ranking dialog logic ---
+
   const fetchRankingData = async () => {
     if (!selectedTrial) return;
     try {
-      // Fetch trial_data records for the current trial that are finished
+      // Fetch finished trial_data records for the current trial.
       const { data: trialRecords, error: trialError } = await supabase
         .from("trial_data")
         .select("user_id, eval_score")
         .eq("trial_id", selectedTrial.id)
-        .eq("status", "Finished")
-        .order("eval_score", { ascending: false })
-        .limit(10);
+        .eq("status", "Finished");
   
       if (trialError) {
         console.error("Error fetching ranking data:", trialError);
@@ -513,10 +497,23 @@ useEffect(() => {
         return;
       }
   
-      // Extract unique user_ids from trialRecords
-      const userIds = trialRecords.map((rec: any) => rec.user_id);
+      // Group the records by user_id and keep the one with highest eval_score.
+      const bestByUser: Record<string, any> = {};
+      trialRecords.forEach((record: any) => {
+        const userId = record.user_id;
+        if (!bestByUser[userId] || record.eval_score > bestByUser[userId].eval_score) {
+          bestByUser[userId] = record;
+        }
+      });
+      const bestRecords = Object.values(bestByUser);
   
-      // Fetch user details in one query
+      // Sort the best records descending by eval_score.
+      bestRecords.sort((a, b) => b.eval_score - a.eval_score);
+  
+      // Extract the unique user_ids from the bestRecords.
+      const userIds = bestRecords.map((rec: any) => rec.user_id);
+  
+      // Fetch user details in one query.
       const { data: usersData, error: usersError } = await supabase
         .from("users")
         .select("id, username, profile_pic")
@@ -527,8 +524,8 @@ useEffect(() => {
         return;
       }
   
-      // Merge trialRecords with user details
-      const mergedRanking = trialRecords.map((record: any) => {
+      // Merge bestRecords with user details.
+      const mergedRanking = bestRecords.map((record: any) => {
         const user = usersData?.find((u: any) => u.id === record.user_id);
         return { ...record, username: user?.username, profile_pic: user?.profile_pic };
       });
@@ -538,8 +535,7 @@ useEffect(() => {
     } catch (error) {
       console.error("Error in fetchRankingData:", error);
     }
-  };
-  
+  };  
 
   if (loading) {
     return (
@@ -823,6 +819,14 @@ useEffect(() => {
           >
             {selectedTrial?.qcount} Questions
           </Typography>
+          {selectedTrial && (
+            <Typography
+              variant="body2"
+              sx={{ textAlign: "center", mt: 1, color: "text.secondary" }}
+            >
+              Attempts left: {attemptsLeft}
+            </Typography>
+          )}
           <Box
             sx={{
               display: "flex",
@@ -914,10 +918,16 @@ useEffect(() => {
                 Go to Lesson
               </Button>
             )}
-            {selectedTrial && (
-              <>
-                {/* If the user has already attempted the trial, disable any trial starting/resuming */}
-                {attempted ? (
+
+            {selectedTrial && (() => {
+              // Compute how many finished trials exist for the selected trial.
+              const finishedCount = finishedTrials.filter(
+                (ft: any) => ft.trial_id === selectedTrial.id
+              ).length;
+
+              // If 2 or more finished attempts exist, disable the attempt button.
+              if (finishedCount >= 2) {
+                return (
                   <Button
                     disabled
                     sx={{
@@ -930,77 +940,53 @@ useEffect(() => {
                   >
                     Attempted
                   </Button>
-                ) : (
-                  <>
-                    {ongoingTrial ? (
-                      ongoingTrial.trial_id === selectedTrial.id ? (
-                        <Button
-                          disabled={isProcessing}
-                          sx={{
-                            p: 1,
-                            backgroundColor: "orange",
-                            color: "#fff",
-                            textTransform: "none",
-                            borderRadius: "8px",
-                            "&:hover": { backgroundColor: "#cc7000" },
-                          }}
-                          onClick={resumeTrial}
-                        >
-                          <PlayArrowIcon sx={{ mr: 1 }} />
-                          Resume
-                        </Button>
-                      ) : (
-                        <Button
-                          disabled
-                          sx={{
-                            p: 1,
-                            backgroundColor: "grey",
-                            color: "#fff",
-                            textTransform: "none",
-                            borderRadius: "8px",
-                          }}
-                        >
-                          <PlayArrowIcon sx={{ mr: 1 }} />
-                          Another trial is in progress
-                        </Button>
-                      )
-                    ) : finishedTrialExists ? (
-                      // If user already finished the trial (attempted), disable retry, though this branch shouldn't be reached because attempted is true.
-                      <Button
-                        disabled={true}
-                        sx={{
-                          p: 1,
-                          backgroundColor: "grey.500",
-                          color: "#fff",
-                          textTransform: "none",
-                          borderRadius: "8px",
-                        }}
-                      >
-                        Attempted
-                      </Button>
-                    ) : (
-                      <Button
-                        disabled={isProcessing}
-                        sx={{
-                          p: 1,
-                          backgroundColor: "success.main",
-                          color: "success.contrastText",
-                          textTransform: "none",
-                          borderRadius: "8px",
-                          "&:hover": { backgroundColor: "success.dark" },
-                        }}
-                        onClick={() => startTrial(selectedTrial.id)}
-                      >
-                        <PlayArrowIcon sx={{ mr: 1 }} />
-                        {selectedTrial.trial_title}
-                      </Button>
-                    )}
-                  </>
-                )}
-              </>
-            )}
+                );
+              }
+
+              // Otherwise, if an ongoing trial exists and it belongs to the selected trial, allow resume.
+              if (ongoingTrial && ongoingTrial.trial_id === selectedTrial.id) {
+                return (
+                  <Button
+                    disabled={isProcessing}
+                    sx={{
+                      p: 1,
+                      backgroundColor: "orange",
+                      color: "#fff",
+                      textTransform: "none",
+                      borderRadius: "8px",
+                      "&:hover": { backgroundColor: "#cc7000" },
+                    }}
+                    onClick={resumeTrial}
+                  >
+                    <PlayArrowIcon sx={{ mr: 1 }} />
+                    Resume
+                  </Button>
+                );
+              }
+
+              // Otherwise, allow starting a new trial.
+              return (
+                <Button
+                  disabled={isProcessing}
+                  sx={{
+                    p: 1,
+                    backgroundColor: "success.main",
+                    color: "success.contrastText",
+                    textTransform: "none",
+                    borderRadius: "8px",
+                    "&:hover": { backgroundColor: "success.dark" },
+                  }}
+                  onClick={() => startTrial(selectedTrial.id)}
+                >
+                  <PlayArrowIcon sx={{ mr: 1 }} />
+                  {finishedCount === 0 ? selectedTrial.trial_title : "Retry"}
+                </Button>
+              );
+            })()}
           </Box>
         </DialogActions>
+
+
       </Dialog>
       {/* Ranking Dialog with Transition */}
       <Dialog
