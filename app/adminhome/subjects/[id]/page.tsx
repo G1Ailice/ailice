@@ -4,35 +4,14 @@ import { useState, useEffect, ChangeEvent } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { createClient } from "@supabase/supabase-js";
 import {
-  Box,
-  Container,
-  Paper,
-  Typography,
-  TableContainer,
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableRow,
-  Button,
-  CircularProgress,
-  Tooltip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
-  useTheme,
-  useMediaQuery,
-  SelectChangeEvent
+  Box, Container, Paper, Typography, TableContainer, Table, TableBody, TableCell, TableHead,
+  TableRow, Button, CircularProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
+  TextField, FormControl, InputLabel, Select, MenuItem, useTheme, useMediaQuery, SelectChangeEvent
 } from "@mui/material";
 import { grey, blue } from "@mui/material/colors";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import AddIcon from "@mui/icons-material/Add"; 
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
@@ -66,7 +45,7 @@ interface Achievement {
   id: number;
   name: string;
   image: string;
-  subject_id: string; // Make sure your achievements table includes this attribute.
+  subject_id: string; 
 }
 
 // Define a separate type for trial edit/create form data with all fields as strings.
@@ -126,6 +105,24 @@ export default function AdminStudentLessonsPage() {
     qcount: ""
   });
 
+  // State to track validation errors for "Add Quiz"
+  const [addQuizErrors, setAddQuizErrors] = useState<Partial<TrialFormData>>({});
+
+  // States for Create Lesson Dialog
+  const [openCreateDialog, setOpenCreateDialog] = useState(false);
+  const [createFormData, setCreateFormData] = useState<Partial<Lesson>>({
+    lesson_title: "",
+    description: "",
+    lesson_no: "",
+    level_req: 0,
+    quarter: "",
+    status: "Locked",
+    unlocked_by: ""
+  });
+
+  // Pagination state: mapping each quarter to its current page number.
+  const [pagination, setPagination] = useState<{ [key: string]: number }>({});
+
   useEffect(() => {
     if (!subid) return;
     const fetchData = async () => {
@@ -182,7 +179,61 @@ export default function AdminStudentLessonsPage() {
     a.localeCompare(b, undefined, { numeric: true })
   );
 
-  // Handler for opening the Lesson Edit dialog
+  // Create Lesson Handlers
+  const handleAddLessonClick = () => {
+    setCreateFormData({
+      lesson_title: "",
+      description: "",
+      lesson_no: "",
+      level_req: 0,
+      quarter: "",
+      status: "Locked",
+      unlocked_by: ""
+    });
+    setOpenCreateDialog(true);
+  };
+
+  const handleCreateFormChange = (
+    e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    setCreateFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+
+  const handleCreateSelectChange = (e: SelectChangeEvent<string>) => {
+    const name = e.target.name as string;
+    setCreateFormData(prev => ({ ...prev, [name]: e.target.value }));
+  };
+
+  const handleCreateFormSubmit = async () => {
+    try {
+      // Build payload, injecting subject_id from URL param
+      const payload = {
+        subject_id: subid,
+        lesson_title: createFormData.lesson_title!,
+        description: createFormData.description!,
+        lesson_no: createFormData.lesson_no!,
+        level_req: Number(createFormData.level_req),
+        quarter: createFormData.quarter!,
+        status: createFormData.status!,
+        unlocked_by: createFormData.unlocked_by || null
+      };
+
+      const { data, error } = await supabase
+        .from("lessons")
+        .insert(payload)
+        .select()
+        .single();
+
+      if (error) throw error;
+      // Append the newly created lesson into state
+      setLessons(prev => [...prev, data as Lesson]);
+      setOpenCreateDialog(false);
+    } catch (err) {
+      console.error("Error creating lesson:", err);
+    }
+  };
+
+  // Lesson Edit Handlers
   const handleEditClick = (lesson: Lesson) => {
     setCurrentLesson(lesson);
     // Pre-populate formData with current lesson values.
@@ -245,7 +296,7 @@ export default function AdminStudentLessonsPage() {
     }
   };
 
-  // Handler for opening the Trial Edit dialog
+  // Trial Edit Handlers
   const handleTrialEditClick = (trial: Trial) => {
     setCurrentTrial(trial);
     // Pre-populate trialFormData, converting numeric values to strings.
@@ -294,7 +345,7 @@ export default function AdminStudentLessonsPage() {
     }));
   };
 
-  // Submit updated trial data (convert string inputs to numbers where needed)
+  // Submit updated trial data
   const handleTrialFormSubmit = async () => {
     if (!currentTrial) return;
     try {
@@ -328,7 +379,7 @@ export default function AdminStudentLessonsPage() {
     }
   };
 
-  // ----- Handlers for Creating a New Trial -----
+  // Handlers for Creating a New Trial
   const handleAddTrialClick = (lesson: Lesson) => {
     setCurrentLessonForTrialCreate(lesson);
     // Reset/create the form data when adding a new trial
@@ -360,9 +411,22 @@ export default function AdminStudentLessonsPage() {
   };
 
   // Submit new trial data.
-  // A new trial id is computed as one plus the maximum numeric id found in trials.
   const handleTrialCreateSubmit = async () => {
     if (!currentLessonForTrialCreate) return;
+
+    // Validate inputs
+    const errors: Partial<TrialFormData> = {};
+    if (!trialCreateFormData.trial_title.trim()) errors.trial_title = "Quiz Title is required.";
+    if (!trialCreateFormData.allscore.trim()) errors.allscore = "Allscore is required.";
+    if (!trialCreateFormData.time.trim()) errors.time = "Time is required.";
+    if (!trialCreateFormData.exp_gain.trim()) errors.exp_gain = "Exp Gain is required.";
+    if (!trialCreateFormData.first_exp.trim()) errors.first_exp = "First Exp is required.";
+    if (!trialCreateFormData.qcount.trim()) errors.qcount = "Qcount is required.";
+
+    setAddQuizErrors(errors);
+
+    if (Object.keys(errors).length > 0) return; // Stop submission if there are errors
+
     try {
       // Compute new id based on the current trials.
       const currentIds = trials.map((t) => Number(t.id)).filter((num) => !isNaN(num));
@@ -391,6 +455,7 @@ export default function AdminStudentLessonsPage() {
       setTrials((prevTrials) => [...prevTrials, ...(data as Trial[])]);
       setOpenTrialCreateDialog(false);
       setCurrentLessonForTrialCreate(null);
+      setAddQuizErrors({}); // Clear errors on successful submission
     } catch (err) {
       console.error("Error creating trial:", err);
     }
@@ -406,6 +471,24 @@ export default function AdminStudentLessonsPage() {
     return parseInt(a.id) - parseInt(b.id);
   });
 
+  // Filter achievements for "Add Quiz" to exclude those already associated with a quiz
+  const availableAchievementsForAdd = achievements.filter(
+    (achv) => !trials.some((trial) => trial.hd_achv_id === achv.id)
+  );
+
+  // Filter achievements for "Edit Quiz" to include the current achievement or those not associated with a quiz
+  const availableAchievementsForEdit = (currentTrial: Trial | null) =>
+    achievements.filter(
+      (achv) =>
+        achv.id === currentTrial?.hd_achv_id || // Include the current achievement
+        !trials.some((trial) => trial.hd_achv_id === achv.id) // Or achievements not associated with any quiz
+    );
+
+  // Handler to update pagination state per quarter.
+  const handleQuarterPageChange = (quarter: string, newPage: number) => {
+    setPagination(prev => ({ ...prev, [quarter]: newPage }));
+  };
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -417,20 +500,66 @@ export default function AdminStudentLessonsPage() {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Header */}
-      <Box sx={{ textAlign: "center", mb: 4, p: 2, bgcolor: blue[50], borderRadius: 2 }}>
+      <Box
+      sx={{
+        display: "flex",
+        justifyContent: "space-between",
+        alignItems: "center",
+        mb: 4,
+        p: 2,
+        bgcolor: blue[50],
+        borderRadius: 2
+      }}
+    >
+      <Box>
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
           {subjectName}
         </Typography>
         <Typography variant="subtitle1" color="text.secondary">
-          Lessons &amp; Trials
+          Lessons &amp; Quizzes
         </Typography>
       </Box>
+      <Box sx={{ display: "flex", gap: 2 }}>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleAddLessonClick}
+          sx={{ textTransform: "none" }}
+        >
+          Add Lesson
+        </Button>
+        <Button
+          variant="contained"
+          onClick={() => router.push(`/adminhome/subjects/${subid}/achievements`)}
+          sx={{ textTransform: "none" }}
+        >
+          Achievements
+        </Button>
+      </Box>
+    </Box>
 
-      {/* For each quarter, render a table */}
+      {/* For each quarter, render a table with pagination */}
       {quarters.map((quarter) => {
+        // Get lessons for this quarter and sort them
         const lessonsInQuarter = groupedByQuarter[quarter].sort(
           (a, b) => parseFloat(a.lesson_no) - parseFloat(b.lesson_no)
         );
+        // Pagination: default current page is 1.
+        const currentPage = pagination[quarter] || 1;
+        const rowsPerPage = 10;
+        const totalPages = Math.ceil(lessonsInQuarter.length / rowsPerPage);
+
+        // Compute sliding window of 5 pages.
+        // If (currentPage + 4) exceeds totalPages, shift the window backward.
+        const startPage =
+          currentPage + 4 > totalPages ? Math.max(1, totalPages - 4) : currentPage;
+        const endPage = Math.min(totalPages, startPage + 4);
+
+        const displayedLessons = lessonsInQuarter.slice(
+          (currentPage - 1) * rowsPerPage,
+          currentPage * rowsPerPage
+        );
+
         return (
           <Box key={quarter} sx={{ mb: 6 }}>
             <Typography variant="h5" sx={{ mb: 2, color: theme.palette.primary.dark }}>
@@ -452,12 +581,12 @@ export default function AdminStudentLessonsPage() {
                     <TableCell><strong>Title</strong></TableCell>
                     {!isMobile && <TableCell><strong>Description</strong></TableCell>}
                     <TableCell><strong>Status</strong></TableCell>
-                    <TableCell><strong>Trial</strong></TableCell>
+                    <TableCell><strong>Quiz</strong></TableCell>
                     <TableCell align="right"><strong>Actions</strong></TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {lessonsInQuarter.map((lesson) => {
+                  {displayedLessons.map((lesson) => {
                     const lessonTrial = trials.find((t) => t.lesson_id === lesson.id);
                     return (
                       <TableRow key={lesson.id} hover>
@@ -485,11 +614,11 @@ export default function AdminStudentLessonsPage() {
                             size="small"
                             startIcon={<OpenInNewIcon />}
                             onClick={() =>
-                              router.push(`/adminhome/subjects/${subid}/lessons/${lesson.id}`)
+                              router.push(`/adminhome/subjects/${subid}/lescontent/${lesson.id}`)
                             }
                             sx={{ textTransform: "none", mr: 1 }}
                           >
-                            Lesson
+                            Lesson Content
                           </Button>
                           {lessonTrial ? (
                             <>
@@ -499,18 +628,18 @@ export default function AdminStudentLessonsPage() {
                                 onClick={() => handleTrialEditClick(lessonTrial)}
                                 sx={{ textTransform: "none", mr: 1 }}
                               >
-                                Edit Trial
+                                Edit Quiz
                               </Button>
                               <Button
                                 size="small"
                                 variant="contained"
                                 color="secondary"
                                 onClick={() =>
-                                  router.push(`/adminhome/subjects/${subid}/trialquestions/${lessonTrial.id}`)
+                                  router.push(`/adminhome/subjects/${subid}/${lessonTrial.id}`)
                                 }
                                 sx={{ textTransform: "none", mr: 1 }}
                               >
-                                Trial Questions
+                                Quiz Questions
                               </Button>
                             </>
                           ) : (
@@ -520,7 +649,7 @@ export default function AdminStudentLessonsPage() {
                               onClick={() => handleAddTrialClick(lesson)}
                               sx={{ textTransform: "none", mr: 1 }}
                             >
-                              Add Trial
+                              Add Quiz
                             </Button>
                           )}
                           <Button
@@ -538,6 +667,30 @@ export default function AdminStudentLessonsPage() {
                 </TableBody>
               </Table>
             </TableContainer>
+            {/* Pagination Controls */}
+            <Box display="flex" justifyContent="center" alignItems="center" mt={2} gap={1}>
+              <Button
+                disabled={currentPage === 1}
+                onClick={() => handleQuarterPageChange(quarter, currentPage - 1)}
+              >
+                {"<"}
+              </Button>
+              {Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i).map((p) => (
+                <Button
+                  key={p}
+                  variant={p === currentPage ? "contained" : "outlined"}
+                  onClick={() => handleQuarterPageChange(quarter, p)}
+                >
+                  {p}
+                </Button>
+              ))}
+              <Button
+                disabled={currentPage === totalPages}
+                onClick={() => handleQuarterPageChange(quarter, currentPage + 1)}
+              >
+                {">"}
+              </Button>
+            </Box>
           </Box>
         );
       })}
@@ -630,10 +783,10 @@ export default function AdminStudentLessonsPage() {
 
       {/* Trial Edit Dialog */}
       <Dialog open={openTrialEditDialog} onClose={() => setOpenTrialEditDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Trial</DialogTitle>
+        <DialogTitle>Edit Quiz</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
           <TextField
-            label="Trial Title"
+            label="Quiz Title"
             name="trial_title"
             value={trialFormData.trial_title}
             onChange={handleTrialFormChange}
@@ -696,7 +849,7 @@ export default function AdminStudentLessonsPage() {
               <MenuItem value="">
                 <em>None</em>
               </MenuItem>
-              {achievements.map((achv) => (
+              {availableAchievementsForEdit(currentTrial).map((achv) => (
                 <MenuItem key={achv.id} value={achv.id.toString()}>
                   <Box display="flex" alignItems="center" gap={1}>
                     <img
@@ -729,14 +882,16 @@ export default function AdminStudentLessonsPage() {
 
       {/* Trial Create Dialog */}
       <Dialog open={openTrialCreateDialog} onClose={() => setOpenTrialCreateDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Trial</DialogTitle>
+        <DialogTitle>Add Quiz</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
           <TextField
-            label="Trial Title"
+            label="Quiz Title"
             name="trial_title"
             value={trialCreateFormData.trial_title}
             onChange={handleTrialCreateFormChange}
             fullWidth
+            error={!!addQuizErrors.trial_title}
+            helperText={addQuizErrors.trial_title}
           />
           <TextField
             label="Allscore"
@@ -745,6 +900,8 @@ export default function AdminStudentLessonsPage() {
             value={trialCreateFormData.allscore}
             onChange={handleTrialCreateFormChange}
             fullWidth
+            error={!!addQuizErrors.allscore}
+            helperText={addQuizErrors.allscore}
           />
           <TextField
             label="Time"
@@ -753,7 +910,8 @@ export default function AdminStudentLessonsPage() {
             value={trialCreateFormData.time}
             onChange={handleTrialCreateFormChange}
             fullWidth
-            helperText="Input is in seconds (number only)"
+            helperText={addQuizErrors.time || "Input is in seconds (number only)"}
+            error={!!addQuizErrors.time}
           />
           <TextField
             label="Exp Gain"
@@ -762,6 +920,8 @@ export default function AdminStudentLessonsPage() {
             value={trialCreateFormData.exp_gain}
             onChange={handleTrialCreateFormChange}
             fullWidth
+            error={!!addQuizErrors.exp_gain}
+            helperText={addQuizErrors.exp_gain}
           />
           <TextField
             label="First Exp"
@@ -770,6 +930,8 @@ export default function AdminStudentLessonsPage() {
             value={trialCreateFormData.first_exp}
             onChange={handleTrialCreateFormChange}
             fullWidth
+            error={!!addQuizErrors.first_exp}
+            helperText={addQuizErrors.first_exp}
           />
           <TextField
             label="HD Condition"
@@ -784,7 +946,7 @@ export default function AdminStudentLessonsPage() {
   return (score === allScoreVal) && (attemptCount === 1);
 })()`}
           />
-          <FormControl fullWidth>
+          <FormControl fullWidth error={!!addQuizErrors.hd_achv_id}>
             <InputLabel>HD Achv Id</InputLabel>
             <Select
               name="hd_achv_id"
@@ -795,7 +957,7 @@ export default function AdminStudentLessonsPage() {
               <MenuItem value="">
                 <em>None</em>
               </MenuItem>
-              {achievements.map((achv) => (
+              {availableAchievementsForAdd.map((achv) => (
                 <MenuItem key={achv.id} value={achv.id.toString()}>
                   <Box display="flex" alignItems="center" gap={1}>
                     <img
@@ -808,6 +970,7 @@ export default function AdminStudentLessonsPage() {
                 </MenuItem>
               ))}
             </Select>
+            {addQuizErrors.hd_achv_id && <Typography color="error">{addQuizErrors.hd_achv_id}</Typography>}
           </FormControl>
           <TextField
             label="Qcount"
@@ -816,6 +979,8 @@ export default function AdminStudentLessonsPage() {
             value={trialCreateFormData.qcount}
             onChange={handleTrialCreateFormChange}
             fullWidth
+            error={!!addQuizErrors.qcount}
+            helperText={addQuizErrors.qcount}
           />
         </DialogContent>
         <DialogActions>
@@ -825,6 +990,99 @@ export default function AdminStudentLessonsPage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+ {/* ── Create Lesson Dialog ───────────────────────────────────────────────────── */}
+      <Dialog
+        open={openCreateDialog}
+        onClose={() => setOpenCreateDialog(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Add Lesson</DialogTitle>
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+          <TextField
+            label="Lesson Title"
+            name="lesson_title"
+            value={createFormData.lesson_title}
+            onChange={handleCreateFormChange}
+            fullWidth
+          />
+          <TextField
+            label="Description"
+            name="description"
+            value={createFormData.description}
+            onChange={handleCreateFormChange}
+            fullWidth
+            multiline
+            rows={3}
+          />
+          <TextField
+            label="Lesson No"
+            name="lesson_no"
+            type="number"
+            value={createFormData.lesson_no}
+            onChange={handleCreateFormChange}
+            fullWidth
+            inputProps={{ min: 1 }}
+          />
+          <TextField
+            label="Level Req"
+            name="level_req"
+            type="number"
+            value={createFormData.level_req}
+            onChange={handleCreateFormChange}
+            fullWidth
+          />
+          <TextField
+            label="Quarter"
+            name="quarter"
+            type="number"
+            value={createFormData.quarter}
+            onChange={handleCreateFormChange}
+            fullWidth
+            inputProps={{ min: 1 }}
+          />
+          <FormControl fullWidth>
+            <InputLabel>Status</InputLabel>
+            <Select
+              name="status"
+              value={createFormData.status}
+              label="Status"
+              onChange={handleCreateSelectChange}
+            >
+              <MenuItem value="Locked">Locked</MenuItem>
+              <MenuItem value="Opened">Opened</MenuItem>
+              <MenuItem value="Final">Final</MenuItem>
+            </Select>
+          </FormControl>
+          <FormControl fullWidth>
+            <InputLabel>Unlocked By</InputLabel>
+            <Select
+              name="unlocked_by"
+              // Use an empty string when unlocked_by is null or undefined
+              value={createFormData.unlocked_by || ""}
+              label="Unlocked By"
+              onChange={handleCreateSelectChange}
+            >
+              <MenuItem value="">
+                <em>None</em>
+              </MenuItem>
+              {sortedUnlockedByOptions.map((trial) => (
+                <MenuItem key={trial.id} value={trial.id}>
+                  {trial.trial_title} ({trial.id})
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenCreateDialog(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleCreateFormSubmit}>
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Container>
   );
 }

@@ -1,4 +1,4 @@
-  'use client';
+'use client';
 
   declare global {
     interface Window {
@@ -41,14 +41,8 @@
   }
 
   export default function LessonDetailsTabs() {
-    // Normalize lessonId to be a string or null.
     const params = useParams();
-    const lessonId =
-      typeof params.lessonId === 'string'
-        ? params.lessonId
-        : Array.isArray(params.lessonId)
-        ? params.lessonId[0]
-        : null;
+    const lessonId = params.lessonId; // Extract lessonId directly from the correct route parameter
 
     const router = useRouter();
     const theme = useTheme();
@@ -149,39 +143,44 @@
       const fetchLessonContent = async () => {
         setIsLoading(true);
         try {
-          const authResponse = await fetch('/api/check-auth', {
-            method: 'GET',
-            credentials: 'include',
-          });
-          if (!authResponse.ok) {
-            router.push('/');
-            return;
-          }
           if (!lessonId) return;
-          const { data, error } = await supabase
+
+          const { data: lessonData, error: lessonError } = await supabase
             .from('lesson_content')
             .select('content, content_type')
             .eq('lessons_id', lessonId)
-            .eq('content_type', 'Lesson')
-            .single();
+            .eq('content_type', 'Lesson');
 
-          if (error) {
-            console.error('Supabase error:', error);
+          if (lessonError) {
+            console.error('Error fetching lesson content:', lessonError);
             setLessonContent(null);
-            return;
+          } else {
+            setLessonContent(lessonData?.[0]?.content || null);
           }
-          setLessonContent(data?.content || null);
+
+          const { data: gameData, error: gameError } = await supabase
+            .from('lesson_content')
+            .select('content, script')
+            .eq('lessons_id', lessonId)
+            .eq('content_type', 'Game');
+
+          if (gameError) {
+            console.error('Error fetching game content:', gameError);
+            setGameContent('');
+            setGameScript('');
+          } else {
+            setGameContent(gameData?.[0]?.content || '');
+            setGameScript(gameData?.[0]?.script || '');
+          }
         } catch (error) {
-          console.error('Failed to fetch lesson content:', error);
+          console.error('Unexpected error fetching lesson content:', error);
         } finally {
           setIsLoading(false);
         }
       };
 
-      if (lessonId) {
-        fetchLessonContent();
-      }
-    }, [lessonId, router]);
+      fetchLessonContent();
+    }, [lessonId]);
 
     // Fetch game content when switching to Practice tab.
     const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
@@ -209,8 +208,7 @@
               .from('lesson_content')
               .select('content, script')
               .eq('lessons_id', lessonId)
-              .eq('content_type', 'Game')
-              .single();
+              .eq('content_type', 'Game');
 
             if (error) {
               console.error('Error fetching game content:', error);
@@ -218,9 +216,9 @@
               setGameScript('');
               return;
             }
-            setGameContent(data?.content || '<p>Game content not available.</p>');
-            setGameScript(data?.script || '');
-            setGameLessonId(lessonId);
+            setGameContent(data?.[0]?.content || '<p>Game content not available.</p>');
+            setGameScript(data?.[0]?.script || '');
+            setGameLessonId(Array.isArray(lessonId) ? lessonId[0] : lessonId);
           } catch (error) {
             console.error('Unexpected error fetching game content:', error);
             setGameContent('<p>Game content not available.</p>');

@@ -8,9 +8,6 @@ import {
   Container,
   Paper,
   Typography,
-  useMediaQuery,
-  CircularProgress,
-  Divider,
   Button,
   Dialog,
   DialogTitle,
@@ -21,9 +18,9 @@ import {
   TableHead,
   TableRow,
   TableCell,
-  TableBody
+  TableBody,
+  TableContainer
 } from '@mui/material';
-import { grey, blue } from '@mui/material/colors';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
@@ -38,86 +35,49 @@ interface Subject {
 
 export default function HomePage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [isProcessing, setIsProcessing] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const isMobile = useMediaQuery('(max-width:600px)');
 
-  // Add subject dialog state
+  // Dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [newSub, setNewSub] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newGroup, setNewGroup] = useState('');
 
-  // Edit subject dialog state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [subjectToEdit, setSubjectToEdit] = useState<Subject | null>(null);
   const [editSub, setEditSub] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editGroup, setEditGroup] = useState('');
 
-  // Fetch subjects from database
   const fetchSubjects = async () => {
-    try {
-      const { data, error } = await supabase.from('subjects').select('id, sub, description, group');
-      if (error) {
-        console.error('Supabase error:', error);
-        return;
-      }
-      const validData = Array.isArray(data)
-        ? data.filter((item): item is Subject =>
-            item &&
-            typeof item === 'object' &&
-            'id' in item &&
-            'sub' in item &&
-            'description' in item &&
-            'group' in item &&
-            typeof item.id === 'string' &&
-            typeof item.sub === 'string'
-          )
-        : [];
-      setSubjects(validData);
-    } catch (error) {
-      console.error('Failed to fetch subjects:', error);
-    } finally {
-      setLoading(false);
+    const { data, error } = await supabase
+      .from('subjects')
+      .select('id, sub, description, group');
+    if (!error && Array.isArray(data)) {
+      setSubjects(data);
     }
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchSubjects();
   }, []);
 
-  // Navigate to subject detail page when subject is clicked
-  const handleViewSubject = async (id: string) => {
-    if (isProcessing) return;
-    setIsProcessing(true);
-    await router.push(`/adminhome/subjects/${id}`);
-    setIsProcessing(false);
+  const handleViewSubject = (id: string) => {
+    router.push(`/adminhome/subjects/${id}`);
   };
 
-  // Handle adding a new subject
   const handleAddSubject = async () => {
     if (!newSub.trim() || !newDescription.trim() || !newGroup.trim()) return;
-    try {
-      const { error } = await supabase
-        .from('subjects')
-        .insert([{ sub: newSub, description: newDescription, group: newGroup }]);
-      if (error) {
-        console.error('Error adding subject:', error);
-        return;
-      }
-      fetchSubjects();
-      setNewSub('');
-      setNewDescription('');
-      setNewGroup('');
-      setAddDialogOpen(false);
-    } catch (error) {
-      console.error('Failed to add subject:', error);
-    }
+    await supabase.from('subjects').insert([{ sub: newSub, description: newDescription, group: newGroup }]);
+    fetchSubjects();
+    setNewSub('');
+    setNewDescription('');
+    setNewGroup('');
+    setAddDialogOpen(false);
   };
 
-  // Handle editing a subject
   const handleEditSubject = (id: string) => {
     const subject = subjects.find((s) => s.id === id);
     if (subject) {
@@ -129,70 +89,59 @@ export default function HomePage() {
     }
   };
 
-  // Update subject in database
   const handleUpdateSubject = async () => {
     if (!subjectToEdit) return;
-    try {
-      const { error } = await supabase
-        .from('subjects')
-        .update({ sub: editSub, description: editDescription, group: editGroup })
-        .eq('id', subjectToEdit.id);
-      if (error) {
-        console.error('Error updating subject:', error);
-        return;
-      }
-      fetchSubjects();
-      setEditDialogOpen(false);
-      setSubjectToEdit(null);
-    } catch (error) {
-      console.error('Failed to update subject:', error);
-    }
+    await supabase
+      .from('subjects')
+      .update({ sub: editSub, description: editDescription, group: editGroup })
+      .eq('id', subjectToEdit.id);
+    fetchSubjects();
+    setEditDialogOpen(false);
+    setSubjectToEdit(null);
   };
 
   if (loading) {
     return (
       <Box height="100vh" display="flex" justifyContent="center" alignItems="center">
-        <CircularProgress />
+        <Typography>Loading...</Typography>
       </Box>
     );
   }
 
   return (
-    <Container maxWidth="lg" disableGutters sx={{ background: grey[50], p: isMobile ? 2 : 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       {/* Header */}
       <Box
-        component="header"
         sx={{
-          py: 2,
-          textAlign: 'center',
-          background: blue[50],
-          borderBottom: `1px solid ${grey[300]}`
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          mb: 4,
+          p: 2,
+          bgcolor: '#e3f2fd',
+          borderRadius: 2
         }}
       >
-        <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 600 }}>
-          Dashboard
+        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+          Available Subjects
         </Typography>
+        <Button variant="contained" onClick={() => setAddDialogOpen(true)}>
+          Add Subject
+        </Button>
       </Box>
 
-      {/* Subjects Section */}
-      <Paper elevation={3} sx={{ p: 2, borderRadius: 2, mt: 2 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-          <Typography variant="h6" sx={{ fontWeight: 600 }}>
-            Available Subjects
-          </Typography>
-          <Button variant="contained" onClick={() => setAddDialogOpen(true)}>
-            Add Subject
-          </Button>
-        </Box>
-        <Divider sx={{ mb: 2 }} />
-        {subjects.length > 0 ? (
+      {/* Subjects Table */}
+      <Paper sx={{ p: 2, borderRadius: 2 }}>
+        <TableContainer>
           <Table>
             <TableHead>
               <TableRow>
                 <TableCell sx={{ fontWeight: 600 }}>Subject</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Description</TableCell>
                 <TableCell sx={{ fontWeight: 600 }}>Group</TableCell>
-                <TableCell sx={{ fontWeight: 600 }}>Actions</TableCell>
+                <TableCell align="center" sx={{ fontWeight: 600 }}>
+                  Actions
+                </TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -201,7 +150,7 @@ export default function HomePage() {
                   <TableCell>{subject.sub}</TableCell>
                   <TableCell>{subject.description}</TableCell>
                   <TableCell>{subject.group}</TableCell>
-                  <TableCell>
+                  <TableCell align="center">
                     <Button
                       variant="contained"
                       size="small"
@@ -222,11 +171,7 @@ export default function HomePage() {
               ))}
             </TableBody>
           </Table>
-        ) : (
-          <Typography variant="body2" align="center" color="textSecondary">
-            No subjects available
-          </Typography>
-        )}
+        </TableContainer>
       </Paper>
 
       {/* Add Subject Dialog */}

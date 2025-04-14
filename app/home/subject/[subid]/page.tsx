@@ -510,8 +510,11 @@ const LessonsPage = () => {
       // Sort the best records descending by eval_score.
       bestRecords.sort((a, b) => b.eval_score - a.eval_score);
   
-      // Extract the unique user_ids from the bestRecords.
-      const userIds = bestRecords.map((rec: any) => rec.user_id);
+      // Limit the ranking to the top 10 records.
+      const top10Records = bestRecords.slice(0, 10);
+  
+      // Extract the unique user_ids from the top 10 records.
+      const userIds = top10Records.map((rec: any) => rec.user_id);
   
       // Fetch user details in one query.
       const { data: usersData, error: usersError } = await supabase
@@ -524,8 +527,8 @@ const LessonsPage = () => {
         return;
       }
   
-      // Merge bestRecords with user details.
-      const mergedRanking = bestRecords.map((record: any) => {
+      // Merge top10Records with user details.
+      const mergedRanking = top10Records.map((record: any) => {
         const user = usersData?.find((u: any) => u.id === record.user_id);
         return { ...record, username: user?.username, profile_pic: user?.profile_pic };
       });
@@ -535,7 +538,7 @@ const LessonsPage = () => {
     } catch (error) {
       console.error("Error in fetchRankingData:", error);
     }
-  };  
+  };
 
   if (loading) {
     return (

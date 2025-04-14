@@ -67,104 +67,138 @@ export default function HomePage() {
   }
 
   return (
-    <Container
-      maxWidth="lg"
-      disableGutters
+    <Box
       sx={{
-        background: grey[50],
-        p: isMobile ? 2 : 4,
+        maxHeight: '75vh',
+        overflow: 'hidden',
       }}
     >
-      {/* Header */}
-      <Box
-        component="header"
+      <Container
+        maxWidth="lg"
+        disableGutters
         sx={{
-          py: 2,
-          textAlign: 'center',
-          background: blue[50],
-          borderBottom: `1px solid ${grey[300]}`,
+          p: isMobile ? 2 : 4,
+          minHeight: 'calc(100vh - 64px)', // Adjust for AppBar height (64px)
+          overflowY: 'auto',
         }}
       >
-        <Typography variant={isMobile ? 'h6' : 'h5'} sx={{ fontWeight: 600 }}>
-          Dashboard
-        </Typography>
-      </Box>
-      
-      {/* Main Content */}
-      <Box
-        component="main"
-        sx={{
-          mt: 4,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: 2,
-        }}
-      >
-        <Paper
-          elevation={3}
+        {/* Header */}
+        <Box
+          component="header"
           sx={{
-            p: 3,
-            borderRadius: 2,
-            background: grey[100],
-            width: '100%',
+            py: 3,
             textAlign: 'center',
+            background: blue[50],
+            borderBottom: `2px solid ${grey[300]}`,
           }}
         >
-          <Typography variant="h6" sx={{ fontWeight: 600, mb: 1 }}>
-            Welcome, {user?.username || 'User'}!
+          <Typography variant={isMobile ? 'h5' : 'h4'} sx={{ fontWeight: 700, letterSpacing: 1 }}>
+            Dashboard
           </Typography>
-          <Divider sx={{ mb: 1 }} />
-          <Typography variant="body1" sx={{ mb: 2 }}>
-            It's recommended to use the admin account in a desktop or laptop so that you can properly see the database.
-          </Typography>
-          <Box
+        </Box>
+        
+        {/* Main Content */}
+        <Box
+          component="main"
+          sx={{
+            mt: 4,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 3,
+            height: 'calc(100% - 100px)', // Adjust height to fit within the container
+            overflow: 'auto',
+          }}
+        >
+          <Paper
+            elevation={4}
             sx={{
-              display: 'flex',
-              flexDirection: isMobile ? 'column' : 'row',
-              gap: 2,
-              justifyContent: 'center',
+              p: 4,
+              borderRadius: 1,
+              width: '100%',
+              maxWidth: 800,
+              textAlign: 'center',
             }}
           >
-            <Button
-              variant="contained"
+            <Typography variant="h5" sx={{ fontWeight: 700, mb: 2, color: blue[700] }}>
+              Welcome, {user?.username || 'User'}!
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Typography variant="body1" sx={{ mb: 3, color: grey[700], lineHeight: 1.6 }}>
+              It's recommended to use the admin account on a desktop or laptop for the best experience.
+            </Typography>
+            <Box
               sx={{
-                backgroundColor: blue[700],
-                color: 'white',
-                borderRadius: 2,
-                px: 3,
-                py: 1.5,
-                boxShadow: 3,
-                transition: 'background-color 0.3s ease',
-                '&:hover': {
-                  backgroundColor: blue[800],
-                },
+                display: 'flex',
+                flexDirection: isMobile ? 'column' : 'row',
+                gap: 2,
+                justifyContent: 'center',
               }}
-              onClick={() => router.push('/adminhome/students')}
             >
-              Student List
-            </Button>
-            <Button
-              variant="contained"
-              sx={{
-                backgroundColor: blue[700],
-                color: 'white',
-                borderRadius: 2,
-                px: 3,
-                py: 1.5,
-                boxShadow: 3,
-                transition: 'background-color 0.3s ease',
-                '&:hover': {
-                  backgroundColor: blue[800],
-                },
-              }}
-              onClick={() => router.push('/adminhome/subjects')}
-            >
-              Manage Subjects
-            </Button>
-          </Box>
-        </Paper>
-      </Box>
-    </Container>
+              <Button
+                variant="contained"
+                sx={{
+                  backgroundColor: blue[700],
+                  color: 'white',
+                  borderRadius: 3,
+                  px: 4,
+                  py: 1.5,
+                  fontWeight: 600,
+                  boxShadow: `0px 4px 10px ${blue[300]}`,
+                  transition: 'transform 0.2s ease, background-color 0.3s ease',
+                  '&:hover': {
+                    backgroundColor: blue[800],
+                    transform: 'scale(1.05)',
+                  },
+                }}
+                onClick={() => router.push('/adminhome/students')}
+              >
+                Student List
+              </Button>
+              <Button
+                variant="contained"
+                sx={{
+                  backgroundColor: blue[700],
+                  color: 'white',
+                  borderRadius: 3,
+                  px: 4,
+                  py: 1.5,
+                  fontWeight: 600,
+                  boxShadow: `0px 4px 10px ${blue[300]}`,
+                  transition: 'transform 0.2s ease, background-color 0.3s ease',
+                  '&:hover': {
+                    backgroundColor: blue[800],
+                    transform: 'scale(1.05)',
+                  },
+                }}
+                onClick={() => router.push('/adminhome/subjects')}
+              >
+                Manage Subjects
+              </Button>
+              <Button
+                variant="contained"
+                sx={{
+                  backgroundColor: blue[700],
+                  color: 'white',
+                  borderRadius: 3,
+                  px: 4,
+                  py: 1.5,
+                  fontWeight: 600,
+                  boxShadow: `0px 4px 10px ${blue[300]}`,
+                  transition: 'transform 0.2s ease, background-color 0.3s ease',
+                  '&:hover': {
+                    backgroundColor: blue[800],
+                    transform: 'scale(1.05)',
+                  },
+                }}
+                onClick={() => router.push('/adminhome/aichatdbs')}
+              >
+                AI Chatbot DB
+              </Button>
+            </Box>
+          </Paper>
+        </Box>
+      </Container>
+    </Box>
   );
 }

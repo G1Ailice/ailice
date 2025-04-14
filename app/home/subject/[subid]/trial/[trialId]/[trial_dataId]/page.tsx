@@ -113,14 +113,23 @@ const TrialPage = () => {
   useEffect(() => {
     const handleVisibilityChange = () => {
       console.log("Visibility changed:", document.visibilityState);
-      if (document.visibilityState === "hidden" && !isFinishedRef.current) {
+      if (
+        document.visibilityState === "hidden" &&
+        !isFinishedRef.current &&
+        !document.querySelector("video:fullscreen") &&
+        !document.activeElement?.closest("iframe")
+      ) {
         setTabSwitched(true);
       }
     };
 
     const handleBlur = () => {
       console.log("Window blurred");
-      if (!isFinishedRef.current) {
+      if (
+        !isFinishedRef.current &&
+        !document.querySelector("video:fullscreen") &&
+        !document.activeElement?.closest("iframe")
+      ) {
         setTabSwitched(true);
       }
     };
@@ -377,11 +386,12 @@ const TrialPage = () => {
       totalPoints = Math.floor(totalPoints * 0.8);
     }
   
-    const star1 = true;
+    // Adjust star logic
+    const star1 = totalPoints > 0; // At least 1 point for the first star
     const star2 = star1 && (allScore > 0 ? totalPoints / allScore >= 0.7 : false);
     const star3 =
       star2 && (allocatedTime > 0 ? finalRemainingValue / allocatedTime >= 0.35 : false);
-    const starCount = 1 + (star2 ? 1 : 0) + (star3 ? 1 : 0);
+    const starCount = (star1 ? 1 : 0) + (star2 ? 1 : 0) + (star3 ? 1 : 0);
   
     const rawEval =
       (((totalPoints / allScore) * 0.6) + ((finalRemainingValue / allocatedTime) * 0.4)) * 100;
@@ -424,10 +434,9 @@ const TrialPage = () => {
   
     setGainedExp(totalExpGained);
   
-    // Modify the attempt message logic: allow max. 2 attempts without deleting any previous attempts.
+    // Change attempt msg logic: max 2 attempts, no deleting prev attempts.
     let localAttemptMessage = "";
     if ((attemptCount ?? 0) >= 2) {
-      // This is the second (or later) attempt. You can display a message indicating that no deletion occurs.
       localAttemptMessage = "This is your second attempt.";
     } else {
       localAttemptMessage = "Good job completing the trial";
@@ -436,7 +445,7 @@ const TrialPage = () => {
     setFinalScore(totalPoints);
     setAttemptMessage(localAttemptMessage);
   
-    // --- Hidden Achievement Section remains unchanged ---
+    // --- Hidden Achv Section same ---
     if (trialInfo.hd_achv_id) {
       const { data: existingAcv } = await supabase
         .from("user_acv")
@@ -550,7 +559,7 @@ const TrialPage = () => {
     );
   }
 
-  const star1Display = true;
+  const star1Display = finalScore > 0; // At least 1 point for the first star
   const star2Display = star1Display && (allScore > 0 ? finalScore / allScore >= 0.7 : false);
   const star3Display = star2Display && (allocatedTime > 0 ? remainingTime / allocatedTime >= 0.35 : false);
 
