@@ -16,6 +16,7 @@ import Button from "@mui/material/Button";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
+import DialogContentText from "@mui/material/DialogContentText";
 import DialogActions from "@mui/material/DialogActions";
 import TextField from "@mui/material/TextField";
 import MenuItem from "@mui/material/MenuItem";
@@ -51,14 +52,19 @@ const AdminTrialQuestions = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string>("");
 
-  // Dialog state for Add, Edit, and View operations.
+  // Dialog state for Add, Edit, View, and Delete operations.
   const [openAddDialog, setOpenAddDialog] = useState<boolean>(false);
   const [openEditDialog, setOpenEditDialog] = useState<boolean>(false);
   const [openViewDialog, setOpenViewDialog] = useState<boolean>(false);
-  // For edit, we store the question being edited
+  // State for question deletion confirmation dialog
+  const [deleteDialogQuestionOpen, setDeleteDialogQuestionOpen] = useState<boolean>(false);
+  // For edit, we store the question being edited.
   const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
   // For view, we store the content to render as HTML.
   const [viewContent, setViewContent] = useState<string>("");
+
+  // For deletion, store the question that is about to be deleted.
+  const [questionToDelete, setQuestionToDelete] = useState<Question | null>(null);
 
   // Form states (used both for adding and editing)
   const [qcontent, setQcontent] = useState<string>("");
@@ -119,6 +125,12 @@ const AdminTrialQuestions = () => {
   const handleViewOpen = (question: Question) => {
     setViewContent(question.qcontent);
     setOpenViewDialog(true);
+  };
+
+  // Open Delete Confirmation for a question
+  const handleDeleteOpen = (question: Question) => {
+    setQuestionToDelete(question);
+    setDeleteDialogQuestionOpen(true);
   };
 
   // Validate required fields before adding or editing a question
@@ -190,6 +202,22 @@ const AdminTrialQuestions = () => {
     }
   };
 
+  // Confirm deletion of a question
+  const confirmDeleteQuestion = async () => {
+    if (!questionToDelete) return;
+    const { error } = await supabase
+      .from("questions")
+      .delete()
+      .eq("id", questionToDelete.id);
+    if (error) {
+      setError("Error deleting question.");
+    } else {
+      fetchQuestions();
+    }
+    setDeleteDialogQuestionOpen(false);
+    setQuestionToDelete(null);
+  };
+
   // Functions to add new input to qselection or qcorrectanswer arrays
   const addQSelection = () => {
     setQselection((prev) => [...prev, ""]);
@@ -241,7 +269,6 @@ const AdminTrialQuestions = () => {
           <Table stickyHeader>
             <TableHead>
               <TableRow>
-                {/* qcontent column with readability tweaks */}
                 <TableCell
                   sx={{
                     maxWidth: 300,
@@ -319,6 +346,9 @@ const AdminTrialQuestions = () => {
                     <IconButton color="primary" onClick={() => handleEditOpen(q)}>
                       <EditIcon />
                     </IconButton>
+                    <IconButton color="error" onClick={() => handleDeleteOpen(q)}>
+                      <DeleteIcon />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
               ))}
@@ -352,7 +382,6 @@ const AdminTrialQuestions = () => {
             <MenuItem value="Multiple">Multiple</MenuItem>
             <MenuItem value="Input">Input</MenuItem>
           </TextField>
-          {/* Render qselection input only if not Input type */}
           {qtype !== "Input" && (
             <Box mt={2}>
               <Typography variant="subtitle1">Selections</Typography>
@@ -378,7 +407,6 @@ const AdminTrialQuestions = () => {
               </Button>
             </Box>
           )}
-          {/* qcorrectanswer dynamic input */}
           <Box mt={2}>
             <Typography variant="subtitle1">Correct Answers</Typography>
             {qcorrectanswer.map((ans, index) => (
@@ -523,6 +551,29 @@ const AdminTrialQuestions = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenViewDialog(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog for a Question */}
+      <Dialog
+        open={deleteDialogQuestionOpen}
+        onClose={() => setDeleteDialogQuestionOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Are you sure you want to delete this question? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogQuestionOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={confirmDeleteQuestion} color="error" variant="contained">
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
     </Container>

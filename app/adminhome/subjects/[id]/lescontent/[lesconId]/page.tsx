@@ -18,6 +18,11 @@ import {
   Collapse,
   Snackbar,
   Alert,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
@@ -36,24 +41,25 @@ interface LessonContent {
 
 export default function LessonDetailsTabs() {
   const params = useParams();
-  const lessonId = params.lesconId; // Use lesconId instead of lessonId
-
+  const lessonId = params.lesconId; // use provided parameter name
   const router = useRouter();
 
   const [currentTab, setCurrentTab] = useState(0);
-  const [lessonContent, setLessonContent] = useState<string | null>(null);
-  const [gameContent, setGameContent] = useState<string | null>(null);
-  const [gameScript, setGameScript] = useState<string | null>(null);
+  const [lessonContent, setLessonContent] = useState<string>('');
+  const [gameContent, setGameContent] = useState<string>('');
+  const [gameScript, setGameScript] = useState<string>('');
   const [isEditingLesson, setIsEditingLesson] = useState(false);
   const [isEditingGame, setIsEditingGame] = useState(false);
-  const [originalLessonContent, setOriginalLessonContent] = useState<string | null>(null);
-  const [originalGameContent, setOriginalGameContent] = useState<string | null>(null);
-  const [originalGameScript, setOriginalGameScript] = useState<string | null>(null);
+  const [originalLessonContent, setOriginalLessonContent] = useState<string>('');
+  const [originalGameContent, setOriginalGameContent] = useState<string>('');
+  const [originalGameScript, setOriginalGameScript] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
 
+  // Hidden IDs for content used in deletion/updating.
+  const [lessonContentId, setLessonContentId] = useState<string | null>(null);
+  const [gameContentId, setGameContentId] = useState<string | null>(null);
+
   const [userData, setUserData] = useState<any>(null);
-  // Remove discussion posting input state:
-  // const [discussionInput, setDiscussionInput] = useState('');
   const [discussions, setDiscussions] = useState<any[]>([]);
   const [isDiscussionLoading, setIsDiscussionLoading] = useState(false);
 
@@ -61,106 +67,250 @@ export default function LessonDetailsTabs() {
   const [replyInputs, setReplyInputs] = useState<{ [key: string]: string }>({});
   const [replies, setReplies] = useState<{ [key: string]: any[] }>({});
 
-  const [openDiscussionLimitWarning, setOpenDiscussionLimitWarning] = useState(false);
-  const [openProfanityWarning, setOpenProfanityWarning] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteType, setDeleteType] = useState<'Lesson' | 'Game' | null>(null);
 
+  const [isButtonDisabled, setIsButtonDisabled] = useState(false);
+
+  // Snackbar state for confirmations/errors.
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error';
+  }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+
+  const handleCloseSnackbar = (event?: React.SyntheticEvent | Event, reason?: string) => {
+    if (reason === 'clickaway') return;
+    setSnackbar(prev => ({ ...prev, open: false }));
+  };
+
+  const handleOpenDeleteDialog = (type: 'Lesson' | 'Game') => {
+    setDeleteType(type);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setDeleteType(null);
+  };
+
+  const handleDeleteContent = async () => {
+    setIsButtonDisabled(true);
+    if (!deleteType) return;
+    try {
+      if (deleteType === 'Lesson') {
+        if (!lessonContentId) {
+          console.error('Lesson Content ID is missing for deletion.');
+          return;
+        }
+        const { error } = await supabase
+          .from('lesson_content')
+          .delete()
+          .eq('id', lessonContentId);
+        if (error) {
+          console.error('Error deleting Lesson content:', error);
+          setSnackbar({ open: true, message: 'Error deleting Lesson content', severity: 'error' });
+          return;
+        }
+        // Reset lesson states.
+        setLessonContentId(null);
+        setLessonContent('');
+        setOriginalLessonContent('');
+        setSnackbar({ open: true, message: 'Lesson content deleted successfully', severity: 'success' });
+      } else if (deleteType === 'Game') {
+        if (!gameContentId) {
+          console.error('Game Content ID is missing for deletion.');
+          return;
+        }
+        const { error } = await supabase
+          .from('lesson_content')
+          .delete()
+          .eq('id', gameContentId);
+        if (error) {
+          console.error('Error deleting Game content:', error);
+          setSnackbar({ open: true, message: 'Error deleting Game content', severity: 'error' });
+          return;
+        }
+        // Reset game states.
+        setGameContentId(null);
+        setGameContent('');
+        setOriginalGameContent('');
+        setGameScript('');
+        setOriginalGameScript('');
+        setSnackbar({ open: true, message: 'Game content deleted successfully', severity: 'success' });
+      }
+    } catch (error) {
+      console.error(`Unexpected error deleting ${deleteType} content:`, error);
+      setSnackbar({ open: true, message: 'Unexpected error during deletion', severity: 'error' });
+    } finally {
+      setIsButtonDisabled(false);
+      handleCloseDeleteDialog();
+    }
+  };
+
+  // Fetch Lesson Content on mount or lessonId change.
   useEffect(() => {
     const fetchLessonContent = async () => {
       setIsLoading(true);
       try {
-        const { data: lessonData } = await supabase
+        const { data: lessonData, error: lessonError } = await supabase
           .from('lesson_content')
-          .select('content')
+          .select('id, content')
           .eq('lessons_id', lessonId)
           .eq('content_type', 'Lesson')
           .limit(1);
-
-        const { data: gameData } = await supabase
-          .from('lesson_content')
-          .select('content, script')
-          .eq('lessons_id', lessonId)
-          .eq('content_type', 'Game')
-          .limit(1);
-
-        setLessonContent(lessonData?.[0]?.content || null);
-        setOriginalLessonContent(lessonData?.[0]?.content || null);
-        setGameContent(gameData?.[0]?.content || null);
-        setOriginalGameContent(gameData?.[0]?.content || null);
-        setGameScript(gameData?.[0]?.script || null);
-        setOriginalGameScript(gameData?.[0]?.script || null);
+        if (lessonError) {
+          console.error('Error fetching lesson content:', lessonError);
+          return;
+        }
+        if (lessonData && lessonData.length > 0) {
+          const content = lessonData[0].content || '';
+          setLessonContentId(lessonData[0].id);
+          setLessonContent(content);
+          setOriginalLessonContent(content);
+        } else {
+          // No record yet.
+          setLessonContent('');
+          setOriginalLessonContent('');
+          setLessonContentId(null);
+        }
       } catch (error) {
-        console.error('Error fetching lesson content:', error);
+        console.error('Unexpected error fetching lesson content:', error);
       } finally {
         setIsLoading(false);
       }
     };
-
     fetchLessonContent();
+  }, [lessonId]);
+
+  // Fetch Game Content on mount or lessonId change.
+  useEffect(() => {
+    const fetchGameContent = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('lesson_content')
+          .select('id, content, script')
+          .eq('lessons_id', lessonId)
+          .eq('content_type', 'Game')
+          .limit(1);
+        if (error) {
+          console.error('Error fetching game content:', error);
+          return;
+        }
+        if (data && data.length > 0) {
+          const content = data[0].content || '';
+          const script = data[0].script || '';
+          setGameContentId(data[0].id);
+          setGameContent(content);
+          setOriginalGameContent(content);
+          setGameScript(script);
+          setOriginalGameScript(script);
+        } else {
+          // No record yet.
+          setGameContent('');
+          setGameScript('');
+          setOriginalGameContent('');
+          setOriginalGameScript('');
+          setGameContentId(null);
+        }
+      } catch (error) {
+        console.error("Unexpected error fetching game content:", error);
+      }
+    };
+    fetchGameContent();
   }, [lessonId]);
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setCurrentTab(newValue);
   };
 
+  // When saving, update or insert accordingly.
   const handleSaveLessonContent = async () => {
+    setIsButtonDisabled(true);
     try {
-      await supabase
-        .from('lesson_content')
-        .upsert({
-          lessons_id: lessonId,
-          content_type: 'Lesson',
-          content: lessonContent,
-        });
+      if (lessonContentId) {
+        // Update existing record.
+        const { error } = await supabase
+          .from('lesson_content')
+          .upsert({
+            id: lessonContentId,
+            lessons_id: lessonId,
+            content_type: 'Lesson',
+            content: lessonContent,
+          });
+        if (error) throw error;
+      } else {
+        // Insert new record.
+        const { data, error } = await supabase
+          .from('lesson_content')
+          .insert({
+            lessons_id: lessonId,
+            content_type: 'Lesson',
+            content: lessonContent,
+          })
+          .select();
+        if (error) throw error;
+        if (data && data.length > 0) {
+          setLessonContentId(data[0].id);
+        }
+      }
       setOriginalLessonContent(lessonContent);
       setIsEditingLesson(false);
+      setSnackbar({ open: true, message: 'Lesson content saved successfully', severity: 'success' });
     } catch (error) {
       console.error('Error saving lesson content:', error);
+      setSnackbar({ open: true, message: 'Error saving lesson content', severity: 'error' });
+    } finally {
+      setIsButtonDisabled(false);
     }
   };
 
   const handleSaveGameContent = async () => {
+    setIsButtonDisabled(true);
     try {
-      await supabase
-        .from('lesson_content')
-        .upsert({
-          lessons_id: lessonId,
-          content_type: 'Game',
-          content: gameContent,
-          script: gameScript,
-        });
+      if (gameContentId) {
+        const { error } = await supabase
+          .from('lesson_content')
+          .upsert({
+            id: gameContentId,
+            lessons_id: lessonId,
+            content_type: 'Game',
+            content: gameContent,
+            script: gameScript,
+          });
+        if (error) throw error;
+      } else {
+        const { data, error } = await supabase
+          .from('lesson_content')
+          .insert({
+            lessons_id: lessonId,
+            content_type: 'Game',
+            content: gameContent,
+            script: gameScript,
+          })
+          .select();
+        if (error) throw error;
+        if (data && data.length > 0) {
+          setGameContentId(data[0].id);
+        }
+      }
       setOriginalGameContent(gameContent);
       setOriginalGameScript(gameScript);
       setIsEditingGame(false);
+      setSnackbar({ open: true, message: 'Game content saved successfully', severity: 'success' });
     } catch (error) {
       console.error('Error saving game content:', error);
+      setSnackbar({ open: true, message: 'Error saving game content', severity: 'error' });
+    } finally {
+      setIsButtonDisabled(false);
     }
   };
 
-  const handleAddContent = async (type: 'Lesson' | 'Game') => {
-    try {
-      await supabase
-        .from('lesson_content')
-        .insert({
-          lessons_id: lessonId,
-          content_type: type,
-          content: '',
-          ...(type === 'Game' && { script: '' }),
-        });
-      if (type === 'Lesson') {
-        setLessonContent('');
-        setOriginalLessonContent('');
-      }
-      if (type === 'Game') {
-        setGameContent('');
-        setOriginalGameContent('');
-        setGameScript('');
-        setOriginalGameScript('');
-      }
-    } catch (error) {
-      console.error(`Error adding ${type} content:`, error);
-    }
-  };
-
+  // Toggle edit mode.
   const handleCancelLessonEdit = () => {
     setLessonContent(originalLessonContent);
     setIsEditingLesson(false);
@@ -248,9 +398,6 @@ export default function LessonDetailsTabs() {
     }
   }, [currentTab, lessonId, userData]);
 
-  // The discussion posting functionality (sending a message) has been removed.
-  // The reply functionality remains so users can see and post replies if desired.
-
   const fetchRepliesForMessage = async (discussId: string) => {
     try {
       const { data, error } = await supabase
@@ -301,40 +448,7 @@ export default function LessonDetailsTabs() {
     });
   };
 
-  // Reply posting functions remain so users can reply to discussions.
-  // If you wish to disable reply posting as well, you could remove or disable this function.
-  const handleSendReply = async (discussId: string) => {
-    const replyText = replyInputs[discussId];
-    if (!replyText || replyText.trim().length === 0) return;
-
-    // Posting reply – you might want to check for profanity here if needed.
-    const now = new Date();
-    const philippineTime = now.toLocaleString('en-US', { timeZone: 'Asia/Manila' });
-    try {
-      const { error } = await supabase
-        .from('discus_reply')
-        .insert([
-          {
-            content: replyText,
-            user_id: userData.id,
-            lesson_id: lessonId,
-            discuss_id: discussId,
-            time_date: philippineTime,
-          },
-        ]);
-      if (error) {
-        console.error('Error sending reply:', error);
-        return;
-      }
-      setReplyInputs((prev) => ({ ...prev, [discussId]: '' }));
-      fetchRepliesForMessage(discussId);
-    } catch (error) {
-      console.error('Unexpected error sending reply:', error);
-    }
-  };
-
-  const handleDeleteMessage = async (discussionId: string, messageUserId: string) => {
-    if (messageUserId !== userData?.id) return;
+  const handleDeleteMessage = async (discussionId: string) => {
     try {
       const { error: replyError } = await supabase
         .from('discus_reply')
@@ -357,8 +471,7 @@ export default function LessonDetailsTabs() {
     }
   };
 
-  const handleDeleteReply = async (replyId: string, replyUserId: string, discussId: string) => {
-    if (replyUserId !== userData?.id) return;
+  const handleDeleteReply = async (replyId: string, discussId: string) => {
     try {
       const { error } = await supabase
         .from('discus_reply')
@@ -374,14 +487,112 @@ export default function LessonDetailsTabs() {
     }
   };
 
-  const handleCloseDiscussionWarning = (
-    event?: React.SyntheticEvent | Event,
-    reason?: string
-  ) => {
-    if (reason === 'clickaway') {
-      return;
+  // Utility: remove previously appended game script element.
+  const removeExistingScript = () => {
+    const existingScript = document.getElementById('game-script');
+    if (existingScript) {
+      existingScript.remove();
     }
-    setOpenDiscussionLimitWarning(false);
+  };
+
+  // Utility: try to clean up known global variables created by the game script.
+  const cleanupGlobalGameVars = () => {
+    try {
+      if (typeof window.questions !== 'undefined') {
+        try {
+          delete window.questions;
+        } catch {
+          window.questions = undefined;
+        }
+      }
+      if (typeof window.startGame !== 'undefined') {
+        try {
+          delete window.startGame;
+        } catch {
+          window.startGame = undefined;
+        }
+      }
+    } catch (error) {
+      console.error('Error cleaning up global game vars:', error);
+    }
+  };
+
+  // On component mount, remove any lingering game script.
+  useEffect(() => {
+    removeExistingScript();
+    cleanupGlobalGameVars();
+  }, []);
+
+  // When lessonId changes, reset game state and remove any previously appended game script.
+  useEffect(() => {
+    setGameContent('');
+    setGameScript('');
+    removeExistingScript();
+    cleanupGlobalGameVars();
+  }, [lessonId]);
+
+  // Run the game script when the Game Content tab is active.
+  useEffect(() => {
+    if (currentTab !== 1 || !gameContent) return;
+
+    const runGameScript = () => {
+      removeExistingScript();
+      const scriptContentMatch = gameScript.match(/<script[^>]*>([\s\S]*?)<\/script>/);
+      const rawScriptContent = scriptContentMatch ? scriptContentMatch[1] : gameScript;
+      const wrappedScriptContent = `(function(){ ${rawScriptContent} })();`;
+
+      try {
+        const script = document.createElement('script');
+        script.id = 'game-script';
+        script.type = 'text/javascript';
+        script.text = wrappedScriptContent;
+        document.body.appendChild(script);
+      } catch (error) {
+        console.error('Error appending wrapped script:', error);
+      }
+    };
+
+    const gameContainer = document.getElementById('game-container');
+    if (gameContainer) {
+      gameContainer.innerHTML = '';
+      removeExistingScript();
+      cleanupGlobalGameVars();
+      gameContainer.innerHTML = gameContent;
+      runGameScript();
+    }
+
+    return () => {
+      if (currentTab !== 1) {
+        removeExistingScript();
+        cleanupGlobalGameVars();
+      }
+    };
+  }, [currentTab, gameContent, gameScript]);
+
+  const handleRefreshGameContent = () => {
+    if (currentTab === 1) {
+      const gameContainer = document.getElementById('game-container');
+      if (gameContainer) {
+        gameContainer.innerHTML = '';
+        removeExistingScript();
+        cleanupGlobalGameVars();
+        gameContainer.innerHTML = gameContent;
+
+        const scriptContentMatch = gameScript.match(/<script[^>]*>([\s\S]*?)<\/script>/);
+        const rawScriptContent = scriptContentMatch ? scriptContentMatch[1] : gameScript;
+        const wrappedScriptContent = `(function(){ ${rawScriptContent} })();`;
+
+        try {
+          const script = document.createElement('script');
+          script.id = 'game-script';
+          script.type = 'text/javascript';
+          script.text = wrappedScriptContent;
+          document.body.appendChild(script);
+        } catch (error) {
+          console.error('Error appending wrapped script:', error);
+        }
+      }
+    }
   };
 
   if (isLoading) {
@@ -399,51 +610,76 @@ export default function LessonDetailsTabs() {
       <Paper elevation={3} sx={{ p: 3, borderRadius: 2 }}>
         <Tabs value={currentTab} onChange={handleTabChange} variant="fullWidth">
           <Tab label="Lesson Content" />
-          <Tab label="Game Content" />
+          <Tab label="Practice Content" />
           <Tab label="Discussions" />
         </Tabs>
 
         {currentTab === 0 && (
           <Box mt={2}>
-            {lessonContent === null ? (
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => handleAddContent('Lesson')}
-              >
-                Add Lesson Type
-              </Button>
-            ) : isEditingLesson ? (
+            {isEditingLesson ? (
               <>
-                <TextField
-                  fullWidth
-                  multiline
-                  value={lessonContent}
-                  onChange={(e) => setLessonContent(e.target.value)}
-                  sx={{
-                    height: 'calc(100vh - 300px)',
-                    overflowY: 'auto',
-                  }}
-                />
-                <Box mt={2} display="flex" gap={2}>
-                  <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveLessonContent}>
+                {/* Save and Cancel buttons on top-left */}
+                <Box mb={2} display="flex" justifyContent="flex-start" gap={2}>
+                  <Button
+                    variant="contained"
+                    startIcon={<SaveIcon />}
+                    onClick={handleSaveLessonContent}
+                    disabled={isButtonDisabled}
+                  >
                     Save
                   </Button>
                   <Button variant="outlined" onClick={handleCancelLessonEdit}>
                     Cancel
                   </Button>
                 </Box>
+                <Box
+                  sx={{
+                    backgroundColor: '#f7f7f7',
+                    padding: 2,
+                    borderRadius: 2,
+                    border: '1px solid #ccc',
+                  }}
+                >
+                  <TextField
+                    fullWidth
+                    variant="outlined"
+                    multiline
+                    value={lessonContent}
+                    onChange={(e) => setLessonContent(e.target.value)}
+                    sx={{
+                      height: 'calc(100vh - 300px)',
+                      overflowY: 'auto',
+                    }}
+                  />
+                </Box>
               </>
             ) : (
               <>
+                <Box display="flex" justifyContent="flex-start" alignItems="center" gap={2} mb={2}>
+                  <Button variant="outlined" startIcon={<EditIcon />} onClick={() => setIsEditingLesson(true)}>
+                    {lessonContentId ? 'Edit' : 'Add'}
+                  </Button>
+                  {lessonContentId && (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={() => handleOpenDeleteDialog('Lesson')}
+                      disabled={isButtonDisabled}
+                    >
+                      Delete 
+                    </Button>
+                  )}
+                </Box>
                 <Box
-                  dangerouslySetInnerHTML={{
-                    __html: DOMPurify.sanitize(lessonContent || ''),
+                  sx={{
+                    padding: 2,
+                    border: '1px solid #eee',
+                    borderRadius: 2,
+                    backgroundColor: '#fafafa',
                   }}
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(lessonContent || '') }}
                 />
-                <Button variant="outlined" startIcon={<EditIcon />} onClick={() => setIsEditingLesson(true)} sx={{ mt: 2 }}>
-                  Edit
-                </Button>
               </>
             )}
           </Box>
@@ -451,58 +687,109 @@ export default function LessonDetailsTabs() {
 
         {currentTab === 1 && (
           <Box mt={2}>
-            {gameContent === null ? (
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={() => handleAddContent('Game')}
-              >
-                Add Game Type
-              </Button>
-            ) : isEditingGame ? (
+            {isEditingGame ? (
               <>
-                <TextField
-                  fullWidth
-                  multiline
-                  label="Game Content"
-                  value={gameContent}
-                  onChange={(e) => setGameContent(e.target.value)}
-                  sx={{
-                    height: 'calc(50vh - 150px)',
-                    overflowY: 'auto',
-                    mb: 2,
-                  }}
-                />
-                <TextField
-                  fullWidth
-                  multiline
-                  label="Game Script"
-                  value={gameScript}
-                  onChange={(e) => setGameScript(e.target.value)}
-                  sx={{
-                    height: 'calc(50vh - 150px)',
-                    overflowY: 'auto',
-                  }}
-                />
-                <Box mt={2} display="flex" gap={2}>
-                  <Button variant="contained" startIcon={<SaveIcon />} onClick={handleSaveGameContent}>
+                {/* Save and Cancel buttons on top-left */}
+                <Box mb={2} display="flex" justifyContent="flex-start" gap={2}>
+                  <Button
+                    variant="contained"
+                    startIcon={<SaveIcon />}
+                    onClick={handleSaveGameContent}
+                    disabled={isButtonDisabled}
+                  >
                     Save
                   </Button>
                   <Button variant="outlined" onClick={handleCancelGameEdit}>
                     Cancel
                   </Button>
                 </Box>
+                <Box
+                  sx={{
+                    backgroundColor: '#f7f7f7',
+                    padding: 2,
+                    borderRadius: 2,
+                    border: '1px solid #ccc',
+                    mb: 2,
+                  }}
+                >
+                  <TextField
+                    fullWidth
+                    variant="outlined"
+                    multiline
+                    label="Game Content"
+                    value={gameContent}
+                    onChange={(e) => setGameContent(e.target.value)}
+                    sx={{
+                      height: 'calc(50vh - 150px)',
+                      overflowY: 'auto',
+                    }}
+                  />
+                </Box>
+                <Box
+                  sx={{
+                    backgroundColor: '#f7f7f7',
+                    padding: 2,
+                    borderRadius: 2,
+                    border: '1px solid #ccc',
+                  }}
+                >
+                  <TextField
+                    fullWidth
+                    variant="outlined"
+                    multiline
+                    label="Game Script"
+                    value={gameScript}
+                    onChange={(e) => setGameScript(e.target.value)}
+                    sx={{
+                      height: 'calc(50vh - 150px)',
+                      overflowY: 'auto',
+                    }}
+                  />
+                </Box>
               </>
             ) : (
               <>
+                <Box display="flex" justifyContent="flex-start" alignItems="center" gap={2} mb={2}>
+                  <Button variant="outlined" startIcon={<EditIcon />} onClick={() => setIsEditingGame(true)}>
+                    {gameContentId ? 'Edit' : 'Add'}
+                  </Button>
+                  {gameContentId && (
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      startIcon={<DeleteIcon />}
+                      onClick={() => handleOpenDeleteDialog('Game')}
+                      disabled={isButtonDisabled}
+                    >
+                      Delete 
+                    </Button>
+                  )}
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    onClick={handleRefreshGameContent}
+                  >
+                    Refresh
+                  </Button>
+                </Box>
                 <Box
-                  dangerouslySetInnerHTML={{
-                    __html: DOMPurify.sanitize(gameContent || ''),
+                  mt={2}
+                  sx={{
+                    maxHeight: '70vh',
+                    overflowY: 'auto',
                   }}
-                />
-                <Button variant="outlined" startIcon={<EditIcon />} onClick={() => setIsEditingGame(true)} sx={{ mt: 2 }}>
-                  Edit
-                </Button>
+                >
+                  <Typography variant="body2" color="error" mb={2}>
+                    Switching to other tabs will reset your progression.
+                  </Typography>
+                  {gameContent ? (
+                    <Box mt={2} id="game-container" />
+                  ) : (
+                    <Typography variant="body1" color="textSecondary">
+                      Content not available.
+                    </Typography>
+                  )}
+                </Box>
               </>
             )}
           </Box>
@@ -510,8 +797,6 @@ export default function LessonDetailsTabs() {
 
         {currentTab === 2 && (
           <Box mt={2}>
-            {/* Discussion posting section removed.
-                The component now only displays existing discussions and replies. */}
             <Box
               sx={{
                 maxHeight: '55vh',
@@ -566,31 +851,12 @@ export default function LessonDetailsTabs() {
                       <Button size="small" onClick={() => toggleReplySection(msg.id)}>
                         {replyOpen[msg.id] ? 'Hide Replies' : 'Show Replies'}
                       </Button>
-                      {msg.user_id === userData?.id && (
-                        <IconButton onClick={() => handleDeleteMessage(msg.id, msg.user_id)} color="error" size="small">
-                          <DeleteIcon />
-                        </IconButton>
-                      )}
+                      <IconButton onClick={() => handleDeleteMessage(msg.id)} color="error" size="small">
+                        <DeleteIcon />
+                      </IconButton>
                     </Box>
                     <Collapse in={replyOpen[msg.id]} timeout="auto" unmountOnExit>
                       <Box mt={1} p={1} borderTop="1px solid #ddd">
-                        {/* Reply input remains active so that users can respond */}
-                        <Box display="flex" alignItems="center" mb={1}>
-                          <TextField
-                            fullWidth
-                            variant="outlined"
-                            size="small"
-                            placeholder="Write a reply..."
-                            value={replyInputs[msg.id] || ''}
-                            onChange={(e) =>
-                              setReplyInputs((prev) => ({ ...prev, [msg.id]: e.target.value }))
-                            }
-                            inputProps={{ maxLength: 280 }}
-                          />
-                          <Button variant="contained" color="primary" size="small" sx={{ ml: 1 }} onClick={() => handleSendReply(msg.id)}>
-                            Reply
-                          </Button>
-                        </Box>
                         {replies[msg.id] && replies[msg.id].length > 0 ? (
                           replies[msg.id].map((reply) => (
                             <Box key={reply.id} display="flex" alignItems="center" justifyContent="space-between" mb={1}>
@@ -621,11 +887,9 @@ export default function LessonDetailsTabs() {
                                   </Typography>
                                 </Box>
                               </Box>
-                              {reply.user_id === userData?.id && (
-                                <IconButton onClick={() => handleDeleteReply(reply.id, reply.user_id, msg.id)} color="error" size="small">
-                                  <DeleteIcon />
-                                </IconButton>
-                              )}
+                              <IconButton onClick={() => handleDeleteReply(reply.id, msg.id)} color="error" size="small">
+                                <DeleteIcon />
+                              </IconButton>
                             </Box>
                           ))
                         ) : (
@@ -645,7 +909,29 @@ export default function LessonDetailsTabs() {
             </Box>
           </Box>
         )}
+
+        <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
+          <DialogTitle>Confirm Deletion</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Are you sure you want to delete this {deleteType} content? This action cannot be undone.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCloseDeleteDialog} color="primary">
+              Cancel
+            </Button>
+            <Button onClick={handleDeleteContent} color="error" disabled={isButtonDisabled}>
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
       </Paper>
+      <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={handleCloseSnackbar}>
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: '100%' }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }

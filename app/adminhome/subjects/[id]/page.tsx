@@ -6,7 +6,7 @@ import { createClient } from "@supabase/supabase-js";
 import {
   Box, Container, Paper, Typography, TableContainer, Table, TableBody, TableCell, TableHead,
   TableRow, Button, CircularProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, FormControl, InputLabel, Select, MenuItem, useTheme, useMediaQuery, SelectChangeEvent
+  TextField, FormControl, InputLabel, Select, MenuItem, useTheme, useMediaQuery, SelectChangeEvent, Snackbar, Alert
 } from "@mui/material";
 import { grey, blue } from "@mui/material/colors";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -71,6 +71,9 @@ export default function AdminStudentLessonsPage() {
   const [trials, setTrials] = useState<Trial[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false); // Add state to track submission
+  const [isDeleting, setIsDeleting] = useState(false); // Add state to track deletion
+  const [hasQuestions, setHasQuestions] = useState(false); // Track if the trial has associated questions
 
   // States for Lesson Edit Dialog
   const [openEditDialog, setOpenEditDialog] = useState(false);
@@ -123,6 +126,99 @@ export default function AdminStudentLessonsPage() {
   // Pagination state: mapping each quarter to its current page number.
   const [pagination, setPagination] = useState<{ [key: string]: number }>({});
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false); // State for delete confirmation dialog
+
+  const handleOpenDeleteDialog = () => {
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+  };
+
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error";
+  }>({
+    open: false,
+    message: "",
+    severity: "success",
+  });
+
+  const handleCloseSnackbar = () => {
+    setSnackbar((prev) => ({ ...prev, open: false }));
+  };
+
+  const [deleteLessonDialogOpen, setDeleteLessonDialogOpen] = useState(false); // State for delete confirmation dialog
+  const [lessonToDelete, setLessonToDelete] = useState<Lesson | null>(null);
+  const [isLessonDeletable, setIsLessonDeletable] = useState<{ [key: string]: boolean }>({}); // Track deletable state for lessons
+
+  const handleOpenDeleteLessonDialog = (lesson: Lesson) => {
+    setLessonToDelete(lesson);
+    setDeleteLessonDialogOpen(true);
+  };
+
+  const handleCloseDeleteLessonDialog = () => {
+    setDeleteLessonDialogOpen(false);
+    setLessonToDelete(null);
+  };
+
+  const checkLessonDeletable = async (lessonId: string) => {
+    try {
+      const [lessonContentCheck, discussionCheck, replyCheck, trialCheck] = await Promise.all([
+        supabase.from("lesson_content").select("id").eq("lessons_id", lessonId),
+        supabase.from("discussion").select("id").eq("lesson_id", lessonId),
+        supabase.from("discus_reply").select("id").eq("lesson_id", lessonId),
+        supabase.from("trials").select("id").eq("lesson_id", lessonId),
+      ]);
+
+      const isDeletable =
+        (lessonContentCheck.data?.length ?? 0) === 0 &&
+        (discussionCheck.data?.length ?? 0) === 0 &&
+        (replyCheck.data?.length ?? 0) === 0 &&
+        (trialCheck.data?.length ?? 0) === 0;
+
+      setIsLessonDeletable((prev) => ({ ...prev, [lessonId]: isDeletable }));
+    } catch (err) {
+      console.error("Error checking if lesson is deletable:", err);
+      setIsLessonDeletable((prev) => ({ ...prev, [lessonId]: false }));
+    }
+  };
+
+  const handleDeleteLesson = async () => {
+    if (!lessonToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("lessons")
+        .delete()
+        .eq("id", lessonToDelete.id);
+
+      if (error) throw error;
+
+      setLessons((prevLessons) =>
+        prevLessons.filter((lesson) => lesson.id !== lessonToDelete.id)
+      );
+      setSnackbar({ open: true, message: "Lesson deleted successfully!", severity: "success" });
+    } catch (err) {
+      console.error("Error deleting lesson:", err);
+      setSnackbar({ open: true, message: "Error deleting lesson.", severity: "error" });
+    } finally {
+      setIsDeleting(false);
+      handleCloseDeleteLessonDialog();
+    }
+  };
+
+  useEffect(() => {
+    lessons.forEach((lesson) => {
+      if (!(lesson.id in isLessonDeletable)) {
+        checkLessonDeletable(lesson.id);
+      }
+    });
+  }, [lessons]);
+
   useEffect(() => {
     if (!subid) return;
     const fetchData = async () => {
@@ -168,7 +264,6 @@ export default function AdminStudentLessonsPage() {
     fetchData();
   }, [subid]);
 
-  // Group lessons by quarter only
   const groupedByQuarter: Record<string, Lesson[]> = {};
   lessons.forEach((lesson) => {
     const q = lesson.quarter || "Unknown";
@@ -179,7 +274,6 @@ export default function AdminStudentLessonsPage() {
     a.localeCompare(b, undefined, { numeric: true })
   );
 
-  // Create Lesson Handlers
   const handleAddLessonClick = () => {
     setCreateFormData({
       lesson_title: "",
@@ -205,8 +299,9 @@ export default function AdminStudentLessonsPage() {
   };
 
   const handleCreateFormSubmit = async () => {
+    if (isSubmitting) return; // Prevent double submission
+    setIsSubmitting(true);
     try {
-      // Build payload, injecting subject_id from URL param
       const payload = {
         subject_id: subid,
         lesson_title: createFormData.lesson_title!,
@@ -228,8 +323,12 @@ export default function AdminStudentLessonsPage() {
       // Append the newly created lesson into state
       setLessons(prev => [...prev, data as Lesson]);
       setOpenCreateDialog(false);
+      setSnackbar({ open: true, message: "Lesson created successfully!", severity: "success" });
     } catch (err) {
       console.error("Error creating lesson:", err);
+      setSnackbar({ open: true, message: "Error creating lesson.", severity: "error" });
+    } finally {
+      setIsSubmitting(false); // Reset submission state
     }
   };
 
@@ -291,14 +390,32 @@ export default function AdminStudentLessonsPage() {
       );
       setOpenEditDialog(false);
       setCurrentLesson(null);
+      setSnackbar({ open: true, message: "Lesson updated successfully!", severity: "success" });
     } catch (err) {
       console.error("Error updating lesson:", err);
+      setSnackbar({ open: true, message: "Error updating lesson.", severity: "error" });
     }
   };
 
   // Trial Edit Handlers
-  const handleTrialEditClick = (trial: Trial) => {
+  const handleTrialEditClick = async (trial: Trial) => {
     setCurrentTrial(trial);
+    setIsDeleting(false); // Reset deleting state
+    setHasQuestions(false); // Reset hasQuestions state
+  
+    // Pre-check if the trial has associated questions
+    try {
+      const { count, error } = await supabase
+        .from("questions")
+        .select("id", { count: "exact" })
+        .eq("trial_id", trial.id);
+  
+      if (error) throw error;
+      setHasQuestions((count ?? 0) > 0);
+    } catch (err) {
+      console.error("Error pre-checking questions for trial:", err);
+    }
+  
     // Pre-populate trialFormData, converting numeric values to strings.
     setTrialFormData({
       trial_title: trial.trial_title,
@@ -348,6 +465,7 @@ export default function AdminStudentLessonsPage() {
   // Submit updated trial data
   const handleTrialFormSubmit = async () => {
     if (!currentTrial) return;
+    setIsSubmitting(true);
     try {
       const payload = {
         trial_title: trialFormData.trial_title,
@@ -357,7 +475,7 @@ export default function AdminStudentLessonsPage() {
         first_exp: Number(trialFormData.first_exp),
         hd_condition: trialFormData.hd_condition,
         hd_achv_id: trialFormData.hd_achv_id ? Number(trialFormData.hd_achv_id) : null,
-        qcount: Number(trialFormData.qcount)
+        qcount: Number(trialFormData.qcount),
       };
 
       const { error } = await supabase
@@ -374,15 +492,17 @@ export default function AdminStudentLessonsPage() {
       );
       setOpenTrialEditDialog(false);
       setCurrentTrial(null);
+      setSnackbar({ open: true, message: "Trial updated successfully!", severity: "success" });
     } catch (err) {
       console.error("Error updating trial:", err);
+      setSnackbar({ open: true, message: "Error updating trial.", severity: "error" });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Handlers for Creating a New Trial
   const handleAddTrialClick = (lesson: Lesson) => {
     setCurrentLessonForTrialCreate(lesson);
-    // Reset/create the form data when adding a new trial
     setTrialCreateFormData({
       trial_title: "",
       allscore: "",
@@ -412,6 +532,8 @@ export default function AdminStudentLessonsPage() {
 
   // Submit new trial data.
   const handleTrialCreateSubmit = async () => {
+    if (isSubmitting) return; // Prevent double submission
+    setIsSubmitting(true);
     if (!currentLessonForTrialCreate) return;
 
     // Validate inputs
@@ -458,6 +580,8 @@ export default function AdminStudentLessonsPage() {
       setAddQuizErrors({}); // Clear errors on successful submission
     } catch (err) {
       console.error("Error creating trial:", err);
+    } finally {
+      setIsSubmitting(false); // Reset submission state
     }
   };
 
@@ -476,7 +600,6 @@ export default function AdminStudentLessonsPage() {
     (achv) => !trials.some((trial) => trial.hd_achv_id === achv.id)
   );
 
-  // Filter achievements for "Edit Quiz" to include the current achievement or those not associated with a quiz
   const availableAchievementsForEdit = (currentTrial: Trial | null) =>
     achievements.filter(
       (achv) =>
@@ -484,9 +607,65 @@ export default function AdminStudentLessonsPage() {
         !trials.some((trial) => trial.hd_achv_id === achv.id) // Or achievements not associated with any quiz
     );
 
-  // Handler to update pagination state per quarter.
   const handleQuarterPageChange = (quarter: string, newPage: number) => {
     setPagination(prev => ({ ...prev, [quarter]: newPage }));
+  };
+
+  useEffect(() => {
+    const checkQuestions = async () => {
+      if (!currentTrial) {
+        setHasQuestions(false); // Reset state if no trial is selected
+        return;
+      }
+      try {
+        const { count, error } = await supabase
+          .from("questions")
+          .select("id", { count: "exact" })
+          .eq("trial_id", currentTrial.id);
+
+        if (error) throw error;
+        setHasQuestions((count ?? 0) > 0);
+      } catch (err) {
+        console.error("Error checking questions:", err);
+        setHasQuestions(false); // Reset state on error
+      }
+    };
+
+    checkQuestions();
+  }, [currentTrial]);
+
+  const handleDeleteTrial = async () => {
+    if (!currentTrial) return;
+
+    setIsDeleting(true);
+    try {
+      // Delete associated data in trial_data
+      const { error: trialDataError } = await supabase
+        .from("trial_data")
+        .delete()
+        .eq("trial_id", currentTrial.id);
+
+      if (trialDataError) throw trialDataError;
+
+      // Delete the trial itself
+      const { error: trialError } = await supabase
+        .from("trials")
+        .delete()
+        .eq("id", currentTrial.id);
+
+      if (trialError) throw trialError;
+
+      setTrials((prevTrials) => prevTrials.filter((trial) => trial.id !== currentTrial.id));
+      setOpenTrialEditDialog(false);
+      setCurrentTrial(null);
+      setSnackbar({ open: true, message: "Trial and associated data deleted successfully!", severity: "success" });
+    } catch (err) {
+      console.error("Error deleting trial or associated data:", err);
+      setSnackbar({ open: true, message: "Error deleting trial or associated data.", severity: "error" });
+    } finally {
+      setIsDeleting(false);
+      handleCloseDeleteDialog();
+    }
   };
 
   if (loading) {
@@ -589,79 +768,78 @@ export default function AdminStudentLessonsPage() {
                   {displayedLessons.map((lesson) => {
                     const lessonTrial = trials.find((t) => t.lesson_id === lesson.id);
                     return (
-                      <TableRow key={lesson.id} hover>
+                        <TableRow key={lesson.id} hover>
                         <TableCell>{lesson.lesson_no}</TableCell>
                         <TableCell>
                           <Typography noWrap>{lesson.lesson_title}</Typography>
                         </TableCell>
                         {!isMobile && (
                           <TableCell>
-                            <Tooltip title={lesson.description}>
-                              <Typography noWrap sx={{ maxWidth: 200, cursor: "help" }}>
-                                {lesson.description}
-                              </Typography>
-                            </Tooltip>
+                          <Tooltip title={lesson.description}>
+                            <Typography noWrap sx={{ maxWidth: 200, cursor: "help" }}>
+                            {lesson.description}
+                            </Typography>
+                          </Tooltip>
                           </TableCell>
                         )}
                         <TableCell>{lesson.status}</TableCell>
                         <TableCell>
                           {lessonTrial
-                            ? `${lessonTrial.trial_title} (${lessonTrial.id})`
-                            : "—"}
+                          ? `${lessonTrial.trial_title} (${lessonTrial.id})`
+                          : "—"}
                         </TableCell>
                         <TableCell align="right">
                           <Button
-                            size="small"
-                            startIcon={<OpenInNewIcon />}
-                            onClick={() =>
-                              router.push(`/adminhome/subjects/${subid}/lescontent/${lesson.id}`)
-                            }
-                            sx={{ textTransform: "none", mr: 1 }}
+                          size="small"
+                          startIcon={<OpenInNewIcon />}
+                          onClick={() =>
+                            router.push(`/adminhome/subjects/${subid}/lescontent/${lesson.id}`)
+                          }
+                          sx={{ textTransform: "none", mr: 1 }}
                           >
-                            Lesson Content
+                          Lesson Content
                           </Button>
                           {lessonTrial ? (
-                            <>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                onClick={() => handleTrialEditClick(lessonTrial)}
-                                sx={{ textTransform: "none", mr: 1 }}
-                              >
-                                Edit Quiz
-                              </Button>
-                              <Button
-                                size="small"
-                                variant="contained"
-                                color="secondary"
-                                onClick={() =>
-                                  router.push(`/adminhome/subjects/${subid}/${lessonTrial.id}`)
-                                }
-                                sx={{ textTransform: "none", mr: 1 }}
-                              >
-                                Quiz Questions
-                              </Button>
-                            </>
-                          ) : (
+                          <>
                             <Button
-                              size="small"
-                              variant="contained"
-                              onClick={() => handleAddTrialClick(lesson)}
-                              sx={{ textTransform: "none", mr: 1 }}
+                            size="small"
+                            variant="outlined"
+                            onClick={() => handleTrialEditClick(lessonTrial)}
+                            sx={{ textTransform: "none", mr: 1 }}
                             >
-                              Add Quiz
+                            Edit Quiz
                             </Button>
+                          </>
+                          ) : (
+                          <Button
+                            size="small"
+                            variant="contained"
+                            onClick={() => handleAddTrialClick(lesson)}
+                            sx={{ textTransform: "none", mr: 1 }}
+                          >
+                            Add Quiz
+                          </Button>
                           )}
+                          <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => handleEditClick(lesson)}
+                          sx={{ textTransform: "none", mr: 1 }}
+                          >
+                          Edit Lesson
+                          </Button>
                           <Button
                             size="small"
                             variant="outlined"
-                            onClick={() => handleEditClick(lesson)}
+                            color="error"
+                            onClick={() => handleOpenDeleteLessonDialog(lesson)}
+                            disabled={!isLessonDeletable[lesson.id]} // Disable if not deletable
                             sx={{ textTransform: "none" }}
                           >
-                            Edit Lesson
+                            Delete
                           </Button>
                         </TableCell>
-                      </TableRow>
+                        </TableRow>
                     );
                   })}
                 </TableBody>
@@ -754,24 +932,26 @@ export default function AdminStudentLessonsPage() {
               <MenuItem value="Final">Final</MenuItem>
             </Select>
           </FormControl>
-          <FormControl fullWidth>
-            <InputLabel>Unlocked By</InputLabel>
-            <Select
-              name="unlocked_by"
-              value={formData.unlocked_by || ""}
-              label="Unlocked By"
-              onChange={handleSelectChange}
-            >
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
-              {sortedUnlockedByOptions.map((trial) => (
-                <MenuItem key={trial.id} value={trial.id}>
-                  {trial.trial_title} ({trial.id})
+          {formData.status !== "Opened" && ( // Hide "Unlocked By" when status is "Opened"
+            <FormControl fullWidth>
+              <InputLabel>Unlocked By</InputLabel>
+              <Select
+                name="unlocked_by"
+                value={formData.unlocked_by || ""}
+                label="Unlocked By"
+                onChange={handleSelectChange}
+              >
+                <MenuItem value="">
+                  <em>None</em>
                 </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+                {sortedUnlockedByOptions.map((trial) => (
+                  <MenuItem key={trial.id} value={trial.id}>
+                    {trial.trial_title} ({trial.id})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenEditDialog(false)}>Cancel</Button>
@@ -783,7 +963,19 @@ export default function AdminStudentLessonsPage() {
 
       {/* Trial Edit Dialog */}
       <Dialog open={openTrialEditDialog} onClose={() => setOpenTrialEditDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Quiz</DialogTitle>
+        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          Edit Quiz
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={() =>
+              router.push(`/adminhome/subjects/${subid}/${currentTrial?.id}`)
+            }
+            sx={{ textTransform: "none" }}
+          >
+            Quiz Questions
+          </Button>
+        </DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
           <TextField
             label="Quiz Title"
@@ -874,8 +1066,34 @@ export default function AdminStudentLessonsPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenTrialEditDialog(false)}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={handleOpenDeleteDialog}
+            disabled={hasQuestions || isDeleting} // Ensure correct disabled state
+          >
+            Delete
+          </Button>
           <Button variant="contained" onClick={handleTrialFormSubmit}>
             Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this trial? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteTrial} color="error" disabled={isDeleting}>
+            {isDeleting ? "Deleting..." : "Delete"}
           </Button>
         </DialogActions>
       </Dialog>
@@ -985,7 +1203,7 @@ export default function AdminStudentLessonsPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenTrialCreateDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleTrialCreateSubmit}>
+          <Button variant="contained" onClick={handleTrialCreateSubmit} disabled={isSubmitting}>
             Save
           </Button>
         </DialogActions>
@@ -1055,34 +1273,62 @@ export default function AdminStudentLessonsPage() {
               <MenuItem value="Final">Final</MenuItem>
             </Select>
           </FormControl>
-          <FormControl fullWidth>
-            <InputLabel>Unlocked By</InputLabel>
-            <Select
-              name="unlocked_by"
-              // Use an empty string when unlocked_by is null or undefined
-              value={createFormData.unlocked_by || ""}
-              label="Unlocked By"
-              onChange={handleCreateSelectChange}
-            >
-              <MenuItem value="">
-                <em>None</em>
-              </MenuItem>
-              {sortedUnlockedByOptions.map((trial) => (
-                <MenuItem key={trial.id} value={trial.id}>
-                  {trial.trial_title} ({trial.id})
+          {createFormData.status !== "Opened" && ( // Hide "Unlocked By" when status is "Opened"
+            <FormControl fullWidth>
+              <InputLabel>Unlocked By</InputLabel>
+              <Select
+                name="unlocked_by"
+                value={createFormData.unlocked_by || ""}
+                label="Unlocked By"
+                onChange={handleCreateSelectChange}
+              >
+                <MenuItem value="">
+                  <em>None</em>
                 </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
+                {sortedUnlockedByOptions.map((trial) => (
+                  <MenuItem key={trial.id} value={trial.id}>
+                    {trial.trial_title} ({trial.id})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setOpenCreateDialog(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleCreateFormSubmit}>
+          <Button variant="contained" onClick={handleCreateFormSubmit} disabled={isSubmitting}>
             Save
           </Button>
         </DialogActions>
       </Dialog>
 
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={handleCloseSnackbar}
+      >
+        <Alert onClose={handleCloseSnackbar} severity={snackbar.severity} sx={{ width: "100%" }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+
+      {/* Delete Lesson Confirmation Dialog */}
+      <Dialog open={deleteLessonDialogOpen} onClose={handleCloseDeleteLessonDialog}>
+        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this lesson? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteLessonDialog} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteLesson} color="error" disabled={isDeleting}>
+            {isDeleting ? "Deleting..." : "Delete"}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

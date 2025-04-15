@@ -42,7 +42,7 @@
 
   export default function LessonDetailsTabs() {
     const params = useParams();
-    const lessonId = params.lessonId; // Extract lessonId directly from the correct route parameter
+    const lessonId = params.lessonId; 
 
     const router = useRouter();
     const theme = useTheme();

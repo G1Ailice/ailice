@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import {
@@ -19,8 +19,11 @@ import {
   TableRow,
   TableCell,
   TableBody,
-  TableContainer
+  TableContainer,
+  Snackbar,
+  Alert
 } from '@mui/material';
+import CircularProgress from '@mui/material/CircularProgress';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
@@ -35,6 +38,7 @@ interface Subject {
 
 export default function HomePage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [lessonsSet, setLessonsSet] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
@@ -50,12 +54,32 @@ export default function HomePage() {
   const [editDescription, setEditDescription] = useState('');
   const [editGroup, setEditGroup] = useState('');
 
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [subjectToDelete, setSubjectToDelete] = useState<string | null>(null);
+
+  // Snackbar state
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error';
+  }>({ open: false, message: '', severity: 'success' });
+
   const fetchSubjects = async () => {
-    const { data, error } = await supabase
+    setLoading(true);
+    // fetch subjects
+    const { data: subjectsData, error: subjectsError } = await supabase
       .from('subjects')
       .select('id, sub, description, group');
-    if (!error && Array.isArray(data)) {
-      setSubjects(data);
+    // fetch lessons to know which subjects have lessons
+    const { data: lessonsData, error: lessonsError } = await supabase
+      .from('lessons')
+      .select('subject_id');
+
+    if (!subjectsError && Array.isArray(subjectsData)) {
+      setSubjects(subjectsData);
+    }
+    if (!lessonsError && Array.isArray(lessonsData)) {
+      setLessonsSet(new Set(lessonsData.map((l) => l.subject_id)));
     }
     setLoading(false);
   };
@@ -70,12 +94,19 @@ export default function HomePage() {
 
   const handleAddSubject = async () => {
     if (!newSub.trim() || !newDescription.trim() || !newGroup.trim()) return;
-    await supabase.from('subjects').insert([{ sub: newSub, description: newDescription, group: newGroup }]);
-    fetchSubjects();
-    setNewSub('');
-    setNewDescription('');
-    setNewGroup('');
-    setAddDialogOpen(false);
+    const { error } = await supabase
+      .from('subjects')
+      .insert([{ sub: newSub, description: newDescription, group: newGroup }]);
+    if (!error) {
+      setSnackbar({ open: true, message: 'Subject added successfully', severity: 'success' });
+      fetchSubjects();
+      setNewSub('');
+      setNewDescription('');
+      setNewGroup('');
+      setAddDialogOpen(false);
+    } else {
+      setSnackbar({ open: true, message: 'Failed to add subject', severity: 'error' });
+    }
   };
 
   const handleEditSubject = (id: string) => {
@@ -91,19 +122,42 @@ export default function HomePage() {
 
   const handleUpdateSubject = async () => {
     if (!subjectToEdit) return;
-    await supabase
+    const { error } = await supabase
       .from('subjects')
       .update({ sub: editSub, description: editDescription, group: editGroup })
       .eq('id', subjectToEdit.id);
-    fetchSubjects();
-    setEditDialogOpen(false);
-    setSubjectToEdit(null);
+    if (!error) {
+      setSnackbar({ open: true, message: 'Subject updated successfully', severity: 'success' });
+      fetchSubjects();
+      setEditDialogOpen(false);
+      setSubjectToEdit(null);
+    } else {
+      setSnackbar({ open: true, message: 'Failed to update subject', severity: 'error' });
+    }
+  };
+
+  const confirmDeleteSubject = (id: string) => {
+    setSubjectToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteSubject = async () => {
+    if (!subjectToDelete) return;
+    const { error } = await supabase.from('subjects').delete().eq('id', subjectToDelete);
+    if (!error) {
+      setSnackbar({ open: true, message: 'Subject deleted successfully', severity: 'success' });
+      fetchSubjects();
+    } else {
+      setSnackbar({ open: true, message: 'Failed to delete subject', severity: 'error' });
+    }
+    setDeleteDialogOpen(false);
+    setSubjectToDelete(null);
   };
 
   if (loading) {
     return (
       <Box height="100vh" display="flex" justifyContent="center" alignItems="center">
-        <Typography>Loading...</Typography>
+        <CircularProgress />
       </Box>
     );
   }
@@ -162,9 +216,19 @@ export default function HomePage() {
                     <Button
                       variant="outlined"
                       size="small"
+                      sx={{ mr: 1 }}
                       onClick={() => handleEditSubject(subject.id)}
                     >
                       Edit
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      color="error"
+                      disabled={lessonsSet.has(subject.id)}
+                      onClick={() => confirmDeleteSubject(subject.id)}
+                    >
+                      Delete
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -247,6 +311,40 @@ export default function HomePage() {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        fullWidth
+        maxWidth="xs"
+      >
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>Are you sure you want to delete this subject?</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleDeleteSubject} variant="contained" color="error">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for confirmations */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={3000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }
