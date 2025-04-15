@@ -92,23 +92,6 @@ export default function HomePage() {
     router.push(`/adminhome/subjects/${id}`);
   };
 
-  const handleAddSubject = async () => {
-    if (!newSub.trim() || !newDescription.trim() || !newGroup.trim()) return;
-    const { error } = await supabase
-      .from('subjects')
-      .insert([{ sub: newSub, description: newDescription, group: newGroup }]);
-    if (!error) {
-      setSnackbar({ open: true, message: 'Subject added successfully', severity: 'success' });
-      fetchSubjects();
-      setNewSub('');
-      setNewDescription('');
-      setNewGroup('');
-      setAddDialogOpen(false);
-    } else {
-      setSnackbar({ open: true, message: 'Failed to add subject', severity: 'error' });
-    }
-  };
-
   const handleEditSubject = (id: string) => {
     const subject = subjects.find((s) => s.id === id);
     if (subject) {
@@ -141,19 +124,6 @@ export default function HomePage() {
     setDeleteDialogOpen(true);
   };
 
-  const handleDeleteSubject = async () => {
-    if (!subjectToDelete) return;
-    const { error } = await supabase.from('subjects').delete().eq('id', subjectToDelete);
-    if (!error) {
-      setSnackbar({ open: true, message: 'Subject deleted successfully', severity: 'success' });
-      fetchSubjects();
-    } else {
-      setSnackbar({ open: true, message: 'Failed to delete subject', severity: 'error' });
-    }
-    setDeleteDialogOpen(false);
-    setSubjectToDelete(null);
-  };
-
   if (loading) {
     return (
       <Box height="100vh" display="flex" justifyContent="center" alignItems="center">
@@ -177,11 +147,8 @@ export default function HomePage() {
         }}
       >
         <Typography variant="h4" sx={{ fontWeight: 700 }}>
-          Available Subjects
+          Subjects
         </Typography>
-        <Button variant="contained" onClick={() => setAddDialogOpen(true)}>
-          Add Subject
-        </Button>
       </Box>
 
       {/* Subjects Table */}
@@ -221,15 +188,6 @@ export default function HomePage() {
                     >
                       Edit
                     </Button>
-                    <Button
-                      variant="outlined"
-                      size="small"
-                      color="error"
-                      disabled={lessonsSet.has(subject.id)}
-                      onClick={() => confirmDeleteSubject(subject.id)}
-                    >
-                      Delete
-                    </Button>
                   </TableCell>
                 </TableRow>
               ))}
@@ -237,43 +195,6 @@ export default function HomePage() {
           </Table>
         </TableContainer>
       </Paper>
-
-      {/* Add Subject Dialog */}
-      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Add New Subject</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Subject Name"
-            fullWidth
-            value={newSub}
-            onChange={(e) => setNewSub(e.target.value)}
-          />
-          <TextField
-            margin="dense"
-            label="Description"
-            fullWidth
-            multiline
-            rows={3}
-            value={newDescription}
-            onChange={(e) => setNewDescription(e.target.value)}
-          />
-          <TextField
-            margin="dense"
-            label="Group"
-            fullWidth
-            value={newGroup}
-            onChange={(e) => setNewGroup(e.target.value)}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAddDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleAddSubject} variant="contained">
-            Add
-          </Button>
-        </DialogActions>
-      </Dialog>
 
       {/* Edit Subject Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} fullWidth maxWidth="sm">
@@ -325,9 +246,6 @@ export default function HomePage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleDeleteSubject} variant="contained" color="error">
-            Delete
-          </Button>
         </DialogActions>
       </Dialog>
 
