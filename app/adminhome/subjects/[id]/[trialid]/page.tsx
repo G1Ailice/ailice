@@ -74,6 +74,9 @@ const AdminTrialQuestions = () => {
   const [qpoints, setQpoints] = useState<number>(0);
   const [formError, setFormError] = useState<string>("");
 
+  // Add new state for trial question count
+  const [trialQcount, setTrialQcount] = useState<number | null>(null);
+
   // Fetch questions from Supabase based on trialid
   const fetchQuestions = async () => {
     setLoading(true);
@@ -91,6 +94,21 @@ const AdminTrialQuestions = () => {
 
   useEffect(() => {
     fetchQuestions();
+  }, [trialid]);
+
+  // New useEffect to fetch trial info (qcount) using trialid
+  useEffect(() => {
+    const fetchTrialInfo = async () => {
+      const { data, error } = await supabase
+        .from("trials")
+        .select("qcount")
+        .eq("id", trialid)
+        .single();
+      if (!error && data) {
+        setTrialQcount(data.qcount);
+      }
+    };
+    fetchTrialInfo();
   }, [trialid]);
 
   // Reset dialog form state
@@ -249,20 +267,38 @@ const AdminTrialQuestions = () => {
     setQcorrectanswer((prev) => prev.filter((_, i) => i !== index));
   };
 
+  if (loading || trialQcount === null) {
+    return (
+      <Container
+        maxWidth="sm"
+        sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: "60vh" }}
+      >
+        <CircularProgress />
+      </Container>
+    );
+  }
+
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
       <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
         <Typography variant="h4">Questions for Trial {trialid}</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={handleAddOpen}>
+        <Button
+          variant="contained"
+          startIcon={<AddIcon />}
+          onClick={handleAddOpen}
+          disabled={trialQcount !== null && questions.length >= trialQcount}
+        >
           Add Question
         </Button>
       </Box>
+      {/* Signifier for current question count */}
+      {trialQcount !== null && (
+        <Typography variant="body2" sx={{ mb: 2 }}>
+          {questions.length} / {trialQcount} questions added
+        </Typography>
+      )}
 
-      {loading ? (
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-          <CircularProgress />
-        </Box>
-      ) : error ? (
+      {error ? (
         <Alert severity="error">{error}</Alert>
       ) : (
         <TableContainer component={Paper} sx={{ overflowX: "auto", maxWidth: "100%" }}>

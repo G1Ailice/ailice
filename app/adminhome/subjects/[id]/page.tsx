@@ -6,12 +6,13 @@ import { createClient } from "@supabase/supabase-js";
 import {
   Box, Container, Paper, Typography, TableContainer, Table, TableBody, TableCell, TableHead,
   TableRow, Button, CircularProgress, Tooltip, Dialog, DialogTitle, DialogContent, DialogActions,
-  TextField, FormControl, InputLabel, Select, MenuItem, useTheme, useMediaQuery, SelectChangeEvent, Snackbar, Alert
+  TextField, FormControl, InputLabel, Select, MenuItem, useTheme, useMediaQuery, SelectChangeEvent, Snackbar, Alert, IconButton
 } from "@mui/material";
 import { grey, blue } from "@mui/material/colors";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import AddIcon from "@mui/icons-material/Add"; 
+import InfoIcon from "@mui/icons-material/Info";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
@@ -668,6 +669,8 @@ export default function AdminStudentLessonsPage() {
     }
   };
 
+  const [hdConditionInfoOpen, setHdConditionInfoOpen] = useState(false);
+
   if (loading) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
@@ -756,7 +759,7 @@ export default function AdminStudentLessonsPage() {
               >
                 <TableHead>
                   <TableRow>
-                    <TableCell><strong>No.</strong></TableCell>
+                    <TableCell sx={{ bgcolor: grey[200], fontWeight: "bold" }}>No.</TableCell>
                     <TableCell><strong>Title</strong></TableCell>
                     {!isMobile && <TableCell><strong>Description</strong></TableCell>}
                     <TableCell><strong>Status</strong></TableCell>
@@ -769,7 +772,7 @@ export default function AdminStudentLessonsPage() {
                     const lessonTrial = trials.find((t) => t.lesson_id === lesson.id);
                     return (
                         <TableRow key={lesson.id} hover>
-                        <TableCell>{lesson.lesson_no}</TableCell>
+                        <TableCell sx={{ bgcolor: grey[100], fontWeight: "bold" }}>{lesson.lesson_no}</TableCell>
                         <TableCell>
                           <Typography noWrap>{lesson.lesson_title}</Typography>
                         </TableCell>
@@ -875,8 +878,18 @@ export default function AdminStudentLessonsPage() {
 
       {/* Lesson Edit Dialog */}
       <Dialog open={openEditDialog} onClose={() => setOpenEditDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Edit Lesson</DialogTitle>
+        <DialogTitle sx={{ bgcolor: blue[50] }}>Edit Lesson</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+          <TextField
+            label="Lesson No"
+            name="lesson_no"
+            type="number"
+            value={formData.lesson_no || ""}
+            onChange={handleFormChange}
+            fullWidth
+            inputProps={{ min: 1 }}
+            sx={{ mt: 2 }}  // added margin top
+          />
           <TextField
             label="Lesson Title"
             name="lesson_title"
@@ -892,15 +905,6 @@ export default function AdminStudentLessonsPage() {
             fullWidth
             multiline
             rows={3}
-          />
-          <TextField
-            label="Lesson No"
-            name="lesson_no"
-            type="number"
-            value={formData.lesson_no || ""}
-            onChange={handleFormChange}
-            fullWidth
-            inputProps={{ min: 1 }}
           />
           <TextField
             label="Level Req"
@@ -953,7 +957,7 @@ export default function AdminStudentLessonsPage() {
             </FormControl>
           )}
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ bgcolor: blue[50] }}>
           <Button onClick={() => setOpenEditDialog(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleFormSubmit}>
             Save
@@ -963,7 +967,7 @@ export default function AdminStudentLessonsPage() {
 
       {/* Trial Edit Dialog */}
       <Dialog open={openTrialEditDialog} onClose={() => setOpenTrialEditDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <DialogTitle sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", bgcolor: blue[50] }}>
           Edit Quiz
           <Button
             variant="contained"
@@ -983,9 +987,10 @@ export default function AdminStudentLessonsPage() {
             value={trialFormData.trial_title}
             onChange={handleTrialFormChange}
             fullWidth
+            sx={{ mt: 2 }}  // added margin top
           />
           <TextField
-            label="Allscore"
+            label="Quiz Overall Score"
             name="allscore"
             type="number"
             value={trialFormData.allscore}
@@ -1002,7 +1007,7 @@ export default function AdminStudentLessonsPage() {
             helperText="Input is in seconds (number only)"
           />
           <TextField
-            label="Exp Gain"
+            label="Normal Attempt Exp Gain"
             name="exp_gain"
             type="number"
             value={trialFormData.exp_gain}
@@ -1010,32 +1015,37 @@ export default function AdminStudentLessonsPage() {
             fullWidth
           />
           <TextField
-            label="First Exp"
+            label="First Attempt Exp Gain"
             name="first_exp"
             type="number"
             value={trialFormData.first_exp}
             onChange={handleTrialFormChange}
             fullWidth
           />
-          <TextField
-            label="HD Condition"
-            name="hd_condition"
-            value={trialFormData.hd_condition}
-            onChange={handleTrialFormChange}
-            fullWidth
-            multiline
-            rows={3}
-            helperText={`Example:
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+            <TextField
+              label="Hidden Achievement Condition"
+              name="hd_condition"
+              value={trialFormData.hd_condition}
+              onChange={handleTrialFormChange}
+              fullWidth
+              multiline
+              rows={3}
+              helperText={`Example:
 (() => {
   return (score === allScoreVal) && (attemptCount === 1);
 })()`}
-          />
+            />
+            <IconButton onClick={() => setHdConditionInfoOpen(true)} sx={{ mt: 1 }}>
+              <InfoIcon />
+            </IconButton>
+          </Box>
           <FormControl fullWidth>
-            <InputLabel>HD Achv Id</InputLabel>
+            <InputLabel>Hidden Achievement</InputLabel>
             <Select
               name="hd_achv_id"
               value={trialFormData.hd_achv_id}
-              label="HD Achv Id"
+              label="Hidden Achievement"
               onChange={handleTrialSelectChange}
             >
               <MenuItem value="">
@@ -1056,7 +1066,7 @@ export default function AdminStudentLessonsPage() {
             </Select>
           </FormControl>
           <TextField
-            label="Qcount"
+            label="Amount of Questions"
             name="qcount"
             type="number"
             value={trialFormData.qcount}
@@ -1064,7 +1074,7 @@ export default function AdminStudentLessonsPage() {
             fullWidth
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ bgcolor: blue[50] }}>
           <Button onClick={() => setOpenTrialEditDialog(false)}>Cancel</Button>
           <Button
             variant="contained"
@@ -1082,13 +1092,13 @@ export default function AdminStudentLessonsPage() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
-        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogTitle sx={{ bgcolor: blue[50] }}>Confirm Deletion</DialogTitle>
         <DialogContent>
           <Typography>
             Are you sure you want to delete this trial? This action cannot be undone.
           </Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ bgcolor: blue[50] }}>
           <Button onClick={handleCloseDeleteDialog} color="primary">
             Cancel
           </Button>
@@ -1100,7 +1110,7 @@ export default function AdminStudentLessonsPage() {
 
       {/* Trial Create Dialog */}
       <Dialog open={openTrialCreateDialog} onClose={() => setOpenTrialCreateDialog(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Quiz</DialogTitle>
+        <DialogTitle sx={{ bgcolor: blue[50] }}>Add Quiz</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
           <TextField
             label="Quiz Title"
@@ -1110,9 +1120,10 @@ export default function AdminStudentLessonsPage() {
             fullWidth
             error={!!addQuizErrors.trial_title}
             helperText={addQuizErrors.trial_title}
+            sx={{ mt: 2 }}  // added margin top
           />
           <TextField
-            label="Allscore"
+            label="Quiz Overall Score"
             name="allscore"
             type="number"
             value={trialCreateFormData.allscore}
@@ -1132,7 +1143,7 @@ export default function AdminStudentLessonsPage() {
             error={!!addQuizErrors.time}
           />
           <TextField
-            label="Exp Gain"
+            label="Normal Attempt Exp Gain"
             name="exp_gain"
             type="number"
             value={trialCreateFormData.exp_gain}
@@ -1142,7 +1153,7 @@ export default function AdminStudentLessonsPage() {
             helperText={addQuizErrors.exp_gain}
           />
           <TextField
-            label="First Exp"
+            label="First Attempt Exp Gain"
             name="first_exp"
             type="number"
             value={trialCreateFormData.first_exp}
@@ -1151,25 +1162,30 @@ export default function AdminStudentLessonsPage() {
             error={!!addQuizErrors.first_exp}
             helperText={addQuizErrors.first_exp}
           />
-          <TextField
-            label="HD Condition"
-            name="hd_condition"
-            value={trialCreateFormData.hd_condition}
-            onChange={handleTrialCreateFormChange}
-            fullWidth
-            multiline
-            rows={3}
-            helperText={`Example:
+          <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+            <TextField
+              label="Hidden Achievement Condition"
+              name="hd_condition"
+              value={trialCreateFormData.hd_condition}
+              onChange={handleTrialCreateFormChange}
+              fullWidth
+              multiline
+              rows={3}
+              helperText={`Example:
 (() => {
   return (score === allScoreVal) && (attemptCount === 1);
 })()`}
-          />
+            />
+            <IconButton onClick={() => setHdConditionInfoOpen(true)} sx={{ mt: 1 }}>
+              <InfoIcon />
+            </IconButton>
+          </Box>
           <FormControl fullWidth error={!!addQuizErrors.hd_achv_id}>
-            <InputLabel>HD Achv Id</InputLabel>
+            <InputLabel>Hidden Achievement</InputLabel>
             <Select
               name="hd_achv_id"
               value={trialCreateFormData.hd_achv_id}
-              label="HD Achv Id"
+              label="Hidden Achievement"
               onChange={handleTrialCreateSelectChange}
             >
               <MenuItem value="">
@@ -1191,7 +1207,7 @@ export default function AdminStudentLessonsPage() {
             {addQuizErrors.hd_achv_id && <Typography color="error">{addQuizErrors.hd_achv_id}</Typography>}
           </FormControl>
           <TextField
-            label="Qcount"
+            label="Amount of Questions"
             name="qcount"
             type="number"
             value={trialCreateFormData.qcount}
@@ -1201,7 +1217,7 @@ export default function AdminStudentLessonsPage() {
             helperText={addQuizErrors.qcount}
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ bgcolor: blue[50] }}>
           <Button onClick={() => setOpenTrialCreateDialog(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleTrialCreateSubmit} disabled={isSubmitting}>
             Save
@@ -1216,8 +1232,18 @@ export default function AdminStudentLessonsPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Add Lesson</DialogTitle>
+        <DialogTitle sx={{ bgcolor: blue[50] }}>Add Lesson</DialogTitle>
         <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+          <TextField
+            label="Lesson No"
+            name="lesson_no"
+            type="number"
+            value={createFormData.lesson_no}
+            onChange={handleCreateFormChange}
+            fullWidth
+            inputProps={{ min: 1 }}
+            sx={{ mt: 2 }}  // added margin top
+          />
           <TextField
             label="Lesson Title"
             name="lesson_title"
@@ -1233,15 +1259,6 @@ export default function AdminStudentLessonsPage() {
             fullWidth
             multiline
             rows={3}
-          />
-          <TextField
-            label="Lesson No"
-            name="lesson_no"
-            type="number"
-            value={createFormData.lesson_no}
-            onChange={handleCreateFormChange}
-            fullWidth
-            inputProps={{ min: 1 }}
           />
           <TextField
             label="Level Req"
@@ -1294,7 +1311,7 @@ export default function AdminStudentLessonsPage() {
             </FormControl>
           )}
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ bgcolor: blue[50] }}>
           <Button onClick={() => setOpenCreateDialog(false)}>Cancel</Button>
           <Button variant="contained" onClick={handleCreateFormSubmit} disabled={isSubmitting}>
             Save
@@ -1314,19 +1331,55 @@ export default function AdminStudentLessonsPage() {
 
       {/* Delete Lesson Confirmation Dialog */}
       <Dialog open={deleteLessonDialogOpen} onClose={handleCloseDeleteLessonDialog}>
-        <DialogTitle>Confirm Deletion</DialogTitle>
+        <DialogTitle sx={{ bgcolor: blue[50] }}>Confirm Deletion</DialogTitle>
         <DialogContent>
           <Typography>
             Are you sure you want to delete this lesson? This action cannot be undone.
           </Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ bgcolor: blue[50] }}>
           <Button onClick={handleCloseDeleteLessonDialog} color="primary">
             Cancel
           </Button>
           <Button onClick={handleDeleteLesson} color="error" disabled={isDeleting}>
             {isDeleting ? "Deleting..." : "Delete"}
           </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* HD Condition Info Dialog */}
+      <Dialog open={hdConditionInfoOpen} onClose={() => setHdConditionInfoOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ bgcolor: blue[50] }}>HD Condition Info</DialogTitle>
+        <DialogContent sx={{ mt: 2 }}>
+          <Typography>
+            Use this function to determine eligibility for a hidden achievement in your quiz.
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            Available variables in your function:
+            <br/><br/>
+            "score" = Student's achieved score
+            <br/>
+            "timeRemaining" = Time left when the quiz finishes
+            <br/>
+            "timeAllocated" = Total time allocated for the quiz
+            <br/>
+            "allScoreVal" = Maximum possible score for the quiz
+            <br/>
+            "attemptCount" = Number of attempts made by the student
+            <br/><br/>
+            Ensure that your function returns a boolean value. This condition is written in JavaScript.
+            <br/>
+            Example:
+            <br/>
+            <code>
+              {`(() => {
+                return (score === allScoreVal) && (attemptCount === 1);
+              })()`}
+            </code>
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ bgcolor: blue[50] }}>
+          <Button onClick={() => setHdConditionInfoOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
     </Container>

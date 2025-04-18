@@ -21,7 +21,9 @@ import {
   DialogContent,
   DialogActions,
   TextField,
-  TablePagination
+  useTheme,
+  Snackbar,
+  Alert
 } from "@mui/material";
 import Cropper from "react-easy-crop";
 import { Area } from "react-easy-crop";
@@ -30,7 +32,6 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
 const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Define interface for achievement data
 interface Achievement {
   id: number;
   name: string;
@@ -39,7 +40,6 @@ interface Achievement {
   subject_id: string;
 }
 
-// Interface for form data that we will use in create and edit dialogs.
 interface AchievementFormData {
   name: string;
   description: string;
@@ -48,71 +48,69 @@ interface AchievementFormData {
 
 export default function AchievementsPage() {
   const { id: subid } = useParams();
-  // Normalize subid to a single string.
   const subjectId = Array.isArray(subid) ? subid[0] : subid;
+  const theme = useTheme();
 
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
 
-  // State for Edit Dialog
+  // Snackbar state
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState("");
+  const [snackbarSeverity, setSnackbarSeverity] = useState<
+    "success" | "error" | "info" | "warning"
+  >("success");
+
   const [openEditDialog, setOpenEditDialog] = useState(false);
   const [currentAchievement, setCurrentAchievement] = useState<Achievement | null>(null);
   const [editFormData, setEditFormData] = useState<AchievementFormData>({
     name: "",
     description: "",
-    imageFile: null
+    imageFile: null,
   });
 
-  // State for Create Dialog
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
   const [createFormData, setCreateFormData] = useState<AchievementFormData>({
     name: "",
     description: "",
-    imageFile: null
+    imageFile: null,
   });
 
-  // State for Delete Confirmation Dialog
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [achievementToDelete, setAchievementToDelete] = useState<Achievement | null>(null);
 
-  // State for cropping
   const [crop, setCrop] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [croppingImage, setCroppingImage] = useState<string | null>(null);
   const [isCropping, setIsCropping] = useState(false);
-  const [onCropCompleteCallback, setOnCropCompleteCallback] = useState<((croppedImage: Blob) => void) | null>(null);
+  const [onCropCompleteCallback, setOnCropCompleteCallback] = useState<
+    ((croppedImage: Blob) => void) | null
+  >(null);
 
   const [linkedAchievementIds, setLinkedAchievementIds] = useState<number[]>([]);
 
   const [currentPage, setCurrentPage] = useState(0);
   const rowsPerPage = 10;
 
-  const handleChangePage = (event: unknown, newPage: number) => {
-    setCurrentPage(newPage);
-  };
-
   const paginatedAchievements = achievements.slice(
     currentPage * rowsPerPage,
     currentPage * rowsPerPage + rowsPerPage
   );
 
+  const handleChangePage = (_: unknown, newPage: number) => {
+    setCurrentPage(newPage);
+  };
+
   const renderPagination = () => {
     const totalPages = Math.ceil(achievements.length / rowsPerPage);
     const startPage = Math.max(0, currentPage - 2);
     const endPage = Math.min(totalPages, currentPage + 3);
-
-    const pageNumbers = Array.from(
-      { length: endPage - startPage },
-      (_, i) => startPage + i + 1
-    );
+    const pageNumbers = Array.from({ length: endPage - startPage }, (_, i) => startPage + i + 1);
 
     return (
       <Box display="flex" justifyContent="center" mt={2}>
-        <Button
-          onClick={() => setCurrentPage(Math.max(0, currentPage - 1))}
-          disabled={currentPage === 0}
-        >
+        <Button onClick={() => setCurrentPage(Math.max(0, currentPage - 1))} disabled={currentPage === 0}>
           {"<"}
         </Button>
         {pageNumbers.map((page) => (
@@ -120,14 +118,13 @@ export default function AchievementsPage() {
             key={page}
             onClick={() => setCurrentPage(page - 1)}
             variant={page - 1 === currentPage ? "contained" : "outlined"}
+            sx={{ mx: 0.5, minWidth: 32 }}
           >
             {page}
           </Button>
         ))}
         <Button
-          onClick={() =>
-            setCurrentPage(Math.min(totalPages - 1, currentPage + 1))
-          }
+          onClick={() => setCurrentPage(Math.min(totalPages - 1, currentPage + 1))}
           disabled={currentPage === totalPages - 1}
         >
           {">"}
@@ -136,24 +133,16 @@ export default function AchievementsPage() {
     );
   };
 
-  // Fetch linked achievement IDs from the trials table
   useEffect(() => {
-    const fetchLinkedAchievements = async () => {
-      const { data, error } = await supabase
-        .from("trials")
-        .select("hd_achv_id");
-
-      if (error) {
-        console.error("Error fetching linked achievements:", error);
-      } else {
-        setLinkedAchievementIds(data.map((trial) => trial.hd_achv_id));
+    const fetchLinked = async () => {
+      const { data, error } = await supabase.from("trials").select("hd_achv_id");
+      if (!error && data) {
+        setLinkedAchievementIds(data.map((t) => t.hd_achv_id));
       }
     };
-
-    fetchLinkedAchievements();
+    fetchLinked();
   }, [achievements]);
 
-  // Fetch achievements filtered by subject_id
   useEffect(() => {
     if (!subjectId) return;
     const fetchAchievements = async () => {
@@ -162,246 +151,151 @@ export default function AchievementsPage() {
         .from("achievements")
         .select("*")
         .eq("subject_id", subjectId);
-      if (error) {
-        console.error("Error fetching achievements:", error);
-      } else {
-        setAchievements(data ?? []);
-      }
+      if (data) setAchievements(data);
       setLoading(false);
     };
     fetchAchievements();
   }, [subjectId]);
 
-  // Helper function to upload an image to Supabase storage.
-  // Returns the new filename if successful.
   const uploadImage = async (file: File) => {
-    const fileName = file.name; // Use the original file name without a timestamp.
-    const { error } = await supabase.storage
-      .from("achivements")
-      .upload(fileName, file);
-    if (error) {
-      throw error;
-    }
+    const fileName = file.name;
+    const { error } = await supabase.storage.from("achivements").upload(fileName, file);
+    if (error) throw error;
     return fileName;
   };
 
-  // Helper to delete an image from Supabase storage.
   const deleteImage = async (fileName: string) => {
-    const { error } = await supabase.storage
-      .from("achivements")
-      .remove([fileName]);
-    if (error) {
-      console.error("Error deleting image:", error);
-    }
+    await supabase.storage.from("achivements").remove([fileName]);
   };
 
-  // Handle change for text fields in the edit form.
+  const handleSnackbarClose = () => {
+    setSnackbarOpen(false);
+  };
+
   const handleEditInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setEditFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
+    setEditFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  // Handle change for file upload in edit form.
-  const handleEditFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      setEditFormData((prev) => ({
-        ...prev,
-        imageFile: files[0]
-      }));
-    }
-  };
-
-  // Submit update for an achievement.
   const handleEditSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!currentAchievement) return;
-
     try {
       let newImage = currentAchievement.image;
-
-      // Prepare the payload without subject_id.
       const payload = {
         name: editFormData.name,
         description: editFormData.description,
-        image: editFormData.imageFile ? String(editFormData.imageFile.name) : currentAchievement.image
+        image: editFormData.imageFile ? editFormData.imageFile.name : currentAchievement.image,
       };
-
-      // Update the achievement in the database first.
-      const { error } = await supabase
-        .from("achievements")
-        .update(payload)
-        .eq("id", currentAchievement.id);
-      if (error) {
-        throw error;
-      }
-
-      // If a new file is uploaded, delete the previous one and upload the new file.
+      await supabase.from("achievements").update(payload).eq("id", currentAchievement.id);
       if (editFormData.imageFile) {
-        if (currentAchievement.image) {
-          await deleteImage(currentAchievement.image);
-        }
+        if (currentAchievement.image) await deleteImage(currentAchievement.image);
         newImage = await uploadImage(editFormData.imageFile);
       }
-
-      // Update the local state.
       setAchievements((prev) =>
-        prev.map((achv) =>
-          achv.id === currentAchievement.id ? { ...achv, ...payload, image: newImage } : achv
+        prev.map((a) =>
+          a.id === currentAchievement.id ? { ...a, ...payload, image: newImage } : a
         )
       );
       setOpenEditDialog(false);
       setCurrentAchievement(null);
+
+      setSnackbarMessage("Achievement updated successfully");
+      setSnackbarSeverity("success");
+      setSnackbarOpen(true);
     } catch (err) {
-      console.error("Error updating achievement:", err);
+      console.error(err);
+      setSnackbarMessage("Failed to update achievement");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
     }
   };
 
-  // When clicking the Edit button, fill form with current achievement's data.
-  const handleEditClick = (achievement: Achievement) => {
-    setCurrentAchievement(achievement);
-    setEditFormData({
-      name: achievement.name,
-      description: achievement.description,
-      imageFile: null // No new file yet
-    });
+  const handleEditClick = (achv: Achievement) => {
+    setCurrentAchievement(achv);
+    setEditFormData({ name: achv.name, description: achv.description, imageFile: null });
     setOpenEditDialog(true);
   };
 
-  // Handle change for the create form.
   const handleCreateInputChange = (e: ChangeEvent<HTMLInputElement>) => {
-    setCreateFormData((prev) => ({
-      ...prev,
-      [e.target.name]: e.target.value
-    }));
+    setCreateFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  // Handle file selection for create.
-  const handleCreateFileChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (files && files.length > 0) {
-      setCreateFormData((prev) => ({
-        ...prev,
-        imageFile: files[0]
-      }));
-    }
-  };
-
-  // Submit new achievement data.
   const handleCreateSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!subjectId) return;
-
-    // Enforce that an image is selected.
-    if (!createFormData.imageFile) {
+    if (!subjectId || !createFormData.imageFile) {
       alert("Image is required.");
       return;
     }
-
     try {
-      // Get the image file name.
-      const imageFileName = String(createFormData.imageFile.name);
-
-      // Prepare the payload with the image file name and subject_id from subid.
+      const fileName = createFormData.imageFile.name;
       const payload = {
         name: createFormData.name,
         description: createFormData.description,
-        image: imageFileName,
-        subject_id: subjectId
+        image: fileName,
+        subject_id: subjectId,
       };
-
-      // Add the achievement to the database first.
-      const { data, error } = await supabase
-        .from("achievements")
-        .insert(payload)
-        .select();
-
-      if (error) {
-        console.error("Error inserting achievement into database:", error);
-        throw error;
-      }
-
-      // Upload the image file after adding the achievement to the database.
-      try {
-        await uploadImage(createFormData.imageFile);
-      } catch (uploadError) {
-        console.error("Error uploading image:", uploadError);
-        throw uploadError;
-      }
-
-      // Append the new achievement to the state.
-      if (Array.isArray(data) && data.length > 0) {
-        setAchievements((prev) => [...prev, data[0] as Achievement]);
+      const { data, error } = await supabase.from("achievements").insert(payload).select();
+      if (error) throw error;
+      await uploadImage(createFormData.imageFile);
+      if (Array.isArray(data) && data[0]) {
+        setAchievements((prev) => [...prev, data[0]]);
       }
       setOpenCreateDialog(false);
+
+      setSnackbarMessage("Achievement added successfully");
+      setSnackbarSeverity("success");
+      setSnackbarOpen(true);
     } catch (err) {
-      console.error("Error creating achievement:", err);
+      console.error(err);
+      setSnackbarMessage("Failed to add achievement");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
     }
   };
 
-  // Handler for deleting an achievement.
-  const handleDeleteClick = (achievement: Achievement) => {
-    setAchievementToDelete(achievement);
+  const handleDeleteClick = (achv: Achievement) => {
+    setAchievementToDelete(achv);
     setOpenDeleteDialog(true);
   };
 
   const handleConfirmDelete = async () => {
     if (!achievementToDelete) return;
-
     try {
-      // Delete the achievement from the DB.
-      const { error } = await supabase
-        .from("achievements")
-        .delete()
-        .eq("id", achievementToDelete.id);
-      if (error) {
-        throw error;
-      }
-
-      // Delete image from storage if present.
-      if (achievementToDelete.image) {
-        await deleteImage(achievementToDelete.image);
-      }
-
-      // Update local state.
+      await supabase.from("achievements").delete().eq("id", achievementToDelete.id);
+      if (achievementToDelete.image) await deleteImage(achievementToDelete.image);
       setAchievements((prev) => prev.filter((a) => a.id !== achievementToDelete.id));
       setOpenDeleteDialog(false);
       setAchievementToDelete(null);
+
+      setSnackbarMessage("Achievement deleted successfully");
+      setSnackbarSeverity("success");
+      setSnackbarOpen(true);
     } catch (err) {
-      console.error("Error deleting achievement:", err);
+      console.error(err);
+      setSnackbarMessage("Failed to delete achievement");
+      setSnackbarSeverity("error");
+      setSnackbarOpen(true);
     }
   };
 
-  // Handle cropping completion
   const handleCropComplete = async () => {
     if (!croppedAreaPixels || !croppingImage) return;
-
-    const croppedImage = await getCroppedImage(croppingImage, croppedAreaPixels);
-    if (onCropCompleteCallback) {
-      onCropCompleteCallback(croppedImage);
-    }
+    const blob = await getCroppedImage(croppingImage, croppedAreaPixels);
+    if (onCropCompleteCallback) onCropCompleteCallback(blob);
     setIsCropping(false);
     setCroppingImage(null);
   };
 
-  // Utility to crop the image
-  const getCroppedImage = async (imageSrc: string, crop: Area): Promise<Blob> => {
-    const image = await createImage(imageSrc);
+  const getCroppedImage = async (src: string, crop: Area): Promise<Blob> => {
+    const img = await createImage(src);
     const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    if (!ctx) throw new Error("Failed to get canvas context");
-
-    const scaleX = image.naturalWidth / image.width;
-    const scaleY = image.naturalHeight / image.height;
-
+    const ctx = canvas.getContext("2d")!;
+    const scaleX = img.naturalWidth / img.width;
+    const scaleY = img.naturalHeight / img.height;
     canvas.width = crop.width;
     canvas.height = crop.height;
-
     ctx.drawImage(
-      image,
+      img,
       crop.x * scaleX,
       crop.y * scaleY,
       crop.width * scaleX,
@@ -411,24 +305,18 @@ export default function AchievementsPage() {
       crop.width,
       crop.height
     );
-
-    return new Promise((resolve) => {
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-      }, "image/jpeg");
-    });
+    return new Promise((res) => canvas.toBlob((b) => b && res(b), "image/jpeg"));
   };
 
   const createImage = (url: string): Promise<HTMLImageElement> =>
-    new Promise((resolve, reject) => {
-      const image = new Image();
-      image.onload = () => resolve(image);
-      image.onerror = (error) => reject(error);
-      image.src = url;
+    new Promise((res, rej) => {
+      const img = new Image();
+      img.onload = () => res(img);
+      img.onerror = rej;
+      img.src = url;
     });
 
-  // Handle file selection for cropping
-  const handleFileSelection = (file: File, callback: (croppedImage: Blob) => void) => {
+  const handleFileSelection = (file: File, callback: (blob: Blob) => void) => {
     const reader = new FileReader();
     reader.onload = () => {
       setCroppingImage(reader.result as string);
@@ -456,25 +344,22 @@ export default function AchievementsPage() {
           mb: 4,
           p: 2,
           bgcolor: "#e3f2fd",
-          borderRadius: 2
+          borderRadius: 2,
         }}
       >
-        <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700 }}>
-            Achievements
-          </Typography>
-        </Box>
+        <Typography variant="h4" sx={{ fontWeight: 700 }}>
+          Achievements
+        </Typography>
         <Button variant="contained" onClick={() => setOpenCreateDialog(true)}>
           Add Achievement
         </Button>
       </Box>
 
       <Paper>
-        <TableContainer>
-          <Table>
+        <TableContainer sx={{ overflowX: "auto" }}>
+          <Table sx={{ minWidth: 650 }} size="small" aria-label="achievements table">
             <TableHead>
               <TableRow>
-                {/* id column is hidden */}
                 <TableCell>Name</TableCell>
                 <TableCell>Description</TableCell>
                 <TableCell>Image</TableCell>
@@ -483,23 +368,37 @@ export default function AchievementsPage() {
             </TableHead>
             <TableBody>
               {paginatedAchievements.map((achv) => (
-                <TableRow key={achv.id}>
+                <TableRow
+                  key={achv.id}
+                  hover
+                  sx={{ "&:nth-of-type(odd)": { backgroundColor: theme.palette.action.hover } }}
+                >
                   <TableCell>{achv.name}</TableCell>
                   <TableCell>{achv.description}</TableCell>
                   <TableCell>
                     {achv.image && (
-                      <img
-                        src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/achivements/${achv.image}`}
+                      <Box
+                        component="img"
+                        src={`${supabaseUrl}/storage/v1/object/public/achivements/${achv.image}`}
                         alt={achv.name}
-                        style={{ width: 100, height: "auto" }}
+                        sx={{ width: 50, height: "auto", borderRadius: 1 }}
                       />
                     )}
                   </TableCell>
                   <TableCell align="center">
-                    <Button variant="outlined" onClick={() => handleEditClick(achv)} sx={{ mr: 1 }}>
+                    <Button
+                      variant="outlined"
+                      onClick={() => handleEditClick(achv)}
+                      sx={{ mr: 1, mb: { xs: 1, sm: 0 } }}
+                    >
                       Edit
                     </Button>
-                    <Button variant="outlined" color="error" onClick={() => handleDeleteClick(achv)} disabled={linkedAchievementIds.includes(achv.id)}>
+                    <Button
+                      variant="outlined"
+                      color="error"
+                      onClick={() => handleDeleteClick(achv)}
+                      disabled={linkedAchievementIds.includes(achv.id)}
+                    >
                       Delete
                     </Button>
                   </TableCell>
@@ -509,21 +408,15 @@ export default function AchievementsPage() {
           </Table>
         </TableContainer>
       </Paper>
+
       {renderPagination()}
 
       {/* Cropping Dialog */}
       {isCropping && (
-        <Dialog open={isCropping} onClose={() => setIsCropping(false)} fullWidth maxWidth="sm">
-          <DialogTitle>Crop Image</DialogTitle>
+        <Dialog open onClose={() => setIsCropping(false)} fullWidth maxWidth="sm">
+          <DialogTitle sx={{ bgcolor: "#e3f2fd" }}>Crop Image</DialogTitle>
           <DialogContent>
-            <Box
-              sx={{
-                position: "relative",
-                width: "100%",
-                height: "300px", // Fixed height for consistent cropping area
-                backgroundColor: "#000", // Optional: Add a background color for better visibility
-              }}
-            >
+            <Box sx={{ position: "relative", width: "100%", height: 300, bgcolor: "#000" }}>
               <Cropper
                 image={croppingImage!}
                 crop={crop}
@@ -531,11 +424,11 @@ export default function AchievementsPage() {
                 aspect={1}
                 onCropChange={setCrop}
                 onZoomChange={setZoom}
-                onCropComplete={(_, croppedAreaPixels) => setCroppedAreaPixels(croppedAreaPixels)}
+                onCropComplete={(_, pixels) => setCroppedAreaPixels(pixels)}
               />
             </Box>
           </DialogContent>
-          <DialogActions>
+          <DialogActions sx={{ bgcolor: "#e3f2fd" }}>
             <Button onClick={() => setIsCropping(false)}>Cancel</Button>
             <Button variant="contained" onClick={handleCropComplete}>
               Crop
@@ -544,9 +437,9 @@ export default function AchievementsPage() {
         </Dialog>
       )}
 
-      {/* Edit Achievement Dialog */}
+      {/* Edit Dialog */}
       <Dialog open={openEditDialog} onClose={() => setOpenEditDialog(false)}>
-        <DialogTitle>Edit Achievement</DialogTitle>
+        <DialogTitle sx={{ bgcolor: "#e3f2fd" }}>Edit Achievement</DialogTitle>
         <DialogContent>
           <Box component="form" onSubmit={handleEditSubmit} sx={{ mt: 2 }}>
             <TextField
@@ -570,30 +463,29 @@ export default function AchievementsPage() {
               required
             />
             <Box sx={{ mt: 2 }}>
-              <Typography variant="body1">Current Image</Typography>
+              <Typography>Current Image</Typography>
               {currentAchievement?.image && (
-                <img
-                  src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/achivements/${currentAchievement.image}`}
+                <Box
+                  component="img"
+                  src={`${supabaseUrl}/storage/v1/object/public/achivements/${currentAchievement.image}`}
                   alt={currentAchievement.name}
-                  style={{ width: 100, height: "auto", marginBottom: "10px" }}
+                  sx={{ width: 50, height: "auto", mb: 1 }}
                 />
               )}
-              <Typography variant="body1">Upload New Image</Typography>
-              <Button
-                variant="outlined"
-                component="label"
-                sx={{ mt: 1 }}
-              >
+              <Typography>Upload New Image</Typography>
+              <Button variant="outlined" component="label" sx={{ mt: 1 }}>
                 Choose File
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleFileSelection(e.target.files[0], (croppedImage) => {
+                    if (e.target.files?.[0]) {
+                      handleFileSelection(e.target.files[0], (blob) => {
                         setEditFormData((prev) => ({
                           ...prev,
-                          imageFile: new File([croppedImage], e.target.files![0].name, { type: "image/jpeg" }),
+                          imageFile: new File([blob], e.target.files![0].name, {
+                            type: "image/jpeg",
+                          }),
                         }));
                       });
                     }
@@ -603,16 +495,17 @@ export default function AchievementsPage() {
               </Button>
               {editFormData.imageFile && (
                 <Box sx={{ mt: 2 }}>
-                  <Typography variant="body2">Selected File: {editFormData.imageFile.name}</Typography>
-                  <img
+                  <Typography variant="body2">Selected: {editFormData.imageFile.name}</Typography>
+                  <Box
+                    component="img"
                     src={URL.createObjectURL(editFormData.imageFile)}
                     alt="Preview"
-                    style={{ width: 100, height: "auto", marginTop: "10px" }}
+                    sx={{ width: 50, height: "auto", mt: 1 }}
                   />
                 </Box>
               )}
             </Box>
-            <DialogActions sx={{ mt: 2, p: 0 }}>
+            <DialogActions sx={{ mt: 2, p: 0, bgcolor: "#e3f2fd" }}>
               <Button onClick={() => setOpenEditDialog(false)}>Cancel</Button>
               <Button type="submit" variant="contained">
                 Save Changes
@@ -622,9 +515,9 @@ export default function AchievementsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Achievement Dialog */}
+      {/* Create Dialog */}
       <Dialog open={openCreateDialog} onClose={() => setOpenCreateDialog(false)}>
-        <DialogTitle>Add Achievement</DialogTitle>
+        <DialogTitle sx={{ bgcolor: "#e3f2fd" }}>Add Achievement</DialogTitle>
         <DialogContent>
           <Box component="form" onSubmit={handleCreateSubmit} sx={{ mt: 2 }}>
             <TextField
@@ -648,22 +541,20 @@ export default function AchievementsPage() {
               required
             />
             <Box sx={{ mt: 2 }}>
-              <Typography variant="body1">Image Upload</Typography>
-              <Button
-                variant="outlined"
-                component="label"
-                sx={{ mt: 1 }}
-              >
+              <Typography>Image Upload</Typography>
+              <Button variant="outlined" component="label" sx={{ mt: 1 }}>
                 Choose File
                 <input
                   type="file"
                   accept="image/*"
                   onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      handleFileSelection(e.target.files[0], (croppedImage) => {
+                    if (e.target.files?.[0]) {
+                      handleFileSelection(e.target.files[0], (blob) => {
                         setCreateFormData((prev) => ({
                           ...prev,
-                          imageFile: new File([croppedImage], e.target.files![0].name, { type: "image/jpeg" }),
+                          imageFile: new File([blob], e.target.files![0].name, {
+                            type: "image/jpeg",
+                          }),
                         }));
                       });
                     }
@@ -673,16 +564,17 @@ export default function AchievementsPage() {
               </Button>
               {createFormData.imageFile && (
                 <Box sx={{ mt: 2 }}>
-                  <Typography variant="body2">Selected File: {createFormData.imageFile.name}</Typography>
-                  <img
+                  <Typography variant="body2">Selected: {createFormData.imageFile.name}</Typography>
+                  <Box
+                    component="img"
                     src={URL.createObjectURL(createFormData.imageFile)}
                     alt="Preview"
-                    style={{ width: 100, height: "auto", marginTop: "10px" }}
+                    sx={{ width: 50, height: "auto", mt: 1 }}
                   />
                 </Box>
               )}
             </Box>
-            <DialogActions sx={{ mt: 2, p: 0 }}>
+            <DialogActions sx={{ mt: 2, p: 0, bgcolor: "#e3f2fd" }}>
               <Button onClick={() => setOpenCreateDialog(false)}>Cancel</Button>
               <Button type="submit" variant="contained">
                 Add Achievement
@@ -694,19 +586,31 @@ export default function AchievementsPage() {
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={openDeleteDialog} onClose={() => setOpenDeleteDialog(false)}>
-        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogTitle sx={{ bgcolor: "#e3f2fd" }}>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography>
             Are you sure you want to delete {achievementToDelete?.name}?
           </Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ bgcolor: "#e3f2fd" }}>
           <Button onClick={() => setOpenDeleteDialog(false)}>Cancel</Button>
           <Button color="error" onClick={handleConfirmDelete}>
             Delete
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={3000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+      >
+        <Alert onClose={handleSnackbarClose} severity={snackbarSeverity} sx={{ width: "100%" }}>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 }

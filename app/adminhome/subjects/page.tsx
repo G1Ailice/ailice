@@ -198,13 +198,14 @@ export default function HomePage() {
 
       {/* Edit Subject Dialog */}
       <Dialog open={editDialogOpen} onClose={() => setEditDialogOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Edit Subject</DialogTitle>
+        <DialogTitle sx={{ bgcolor: "#e3f2fd" }}>Edit Subject</DialogTitle>
         <DialogContent>
           <TextField
             autoFocus
             margin="dense"
             label="Subject Name"
             fullWidth
+            sx={{ mt: 2 }}  // added margin top
             value={editSub}
             onChange={(e) => setEditSub(e.target.value)}
           />
@@ -225,7 +226,7 @@ export default function HomePage() {
             onChange={(e) => setEditGroup(e.target.value)}
           />
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ bgcolor: "#e3f2fd" }}>
           <Button onClick={() => setEditDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleUpdateSubject} variant="contained">
             Update
@@ -240,11 +241,11 @@ export default function HomePage() {
         fullWidth
         maxWidth="xs"
       >
-        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogTitle sx={{ bgcolor: "#e3f2fd" }}>Confirm Delete</DialogTitle>
         <DialogContent>
           <Typography>Are you sure you want to delete this subject?</Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ bgcolor: "#e3f2fd" }}>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
         </DialogActions>
       </Dialog>

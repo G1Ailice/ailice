@@ -83,6 +83,10 @@ export default function LessonDetailsTabs() {
     severity: 'success',
   });
 
+  // Add new state variables for discussion and reply deletion confirmation dialogs.
+  const [confirmDeleteDiscussion, setConfirmDeleteDiscussion] = useState<{ open: boolean; discussionId: string | null }>({ open: false, discussionId: null });
+  const [confirmDeleteReply, setConfirmDeleteReply] = useState<{ open: boolean; replyId: string | null; discussionId: string | null }>({ open: false, replyId: null, discussionId: null });
+
   const handleCloseSnackbar = (event?: React.SyntheticEvent | Event, reason?: string) => {
     if (reason === 'clickaway') return;
     setSnackbar(prev => ({ ...prev, open: false }));
@@ -150,6 +154,38 @@ export default function LessonDetailsTabs() {
       setIsButtonDisabled(false);
       handleCloseDeleteDialog();
     }
+  };
+
+  // Add helper functions for discussion deletion confirmation.
+  const showDeleteDiscussionDialog = (discussionId: string) => {
+    setConfirmDeleteDiscussion({ open: true, discussionId });
+  };
+
+  const handleConfirmDeleteDiscussion = async () => {
+    if (confirmDeleteDiscussion.discussionId) {
+      await handleDeleteMessage(confirmDeleteDiscussion.discussionId);
+    }
+    setConfirmDeleteDiscussion({ open: false, discussionId: null });
+  };
+
+  const handleCancelDeleteDiscussion = () => {
+    setConfirmDeleteDiscussion({ open: false, discussionId: null });
+  };
+
+  // Add helper functions for reply deletion confirmation.
+  const showDeleteReplyDialog = (replyId: string, discussionId: string) => {
+    setConfirmDeleteReply({ open: true, replyId, discussionId });
+  };
+
+  const handleConfirmDeleteReply = async () => {
+    if (confirmDeleteReply.replyId && confirmDeleteReply.discussionId) {
+      await handleDeleteReply(confirmDeleteReply.replyId, confirmDeleteReply.discussionId);
+    }
+    setConfirmDeleteReply({ open: false, replyId: null, discussionId: null });
+  };
+
+  const handleCancelDeleteReply = () => {
+    setConfirmDeleteReply({ open: false, replyId: null, discussionId: null });
   };
 
   // Fetch Lesson Content on mount or lessonId change.
@@ -851,7 +887,11 @@ export default function LessonDetailsTabs() {
                       <Button size="small" onClick={() => toggleReplySection(msg.id)}>
                         {replyOpen[msg.id] ? 'Hide Replies' : 'Show Replies'}
                       </Button>
-                      <IconButton onClick={() => handleDeleteMessage(msg.id)} color="error" size="small">
+                      <IconButton
+                        onClick={() => showDeleteDiscussionDialog(msg.id)}
+                        color="error"
+                        size="small"
+                      >
                         <DeleteIcon />
                       </IconButton>
                     </Box>
@@ -887,7 +927,11 @@ export default function LessonDetailsTabs() {
                                   </Typography>
                                 </Box>
                               </Box>
-                              <IconButton onClick={() => handleDeleteReply(reply.id, msg.id)} color="error" size="small">
+                              <IconButton
+                                onClick={() => showDeleteReplyDialog(reply.id, msg.id)}
+                                color="error"
+                                size="small"
+                              >
                                 <DeleteIcon />
                               </IconButton>
                             </Box>
@@ -922,6 +966,40 @@ export default function LessonDetailsTabs() {
               Cancel
             </Button>
             <Button onClick={handleDeleteContent} color="error" disabled={isButtonDisabled}>
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={confirmDeleteDiscussion.open} onClose={handleCancelDeleteDiscussion}>
+          <DialogTitle>Confirm Comment Deletion</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Are you sure you want to delete this comment? This action cannot be undone.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCancelDeleteDiscussion} color="primary">
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmDeleteDiscussion} color="error">
+              Delete
+            </Button>
+          </DialogActions>
+        </Dialog>
+
+        <Dialog open={confirmDeleteReply.open} onClose={handleCancelDeleteReply}>
+          <DialogTitle>Confirm Reply Deletion</DialogTitle>
+          <DialogContent>
+            <DialogContentText>
+              Are you sure you want to delete this reply? This action cannot be undone.
+            </DialogContentText>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={handleCancelDeleteReply} color="primary">
+              Cancel
+            </Button>
+            <Button onClick={handleConfirmDeleteReply} color="error">
               Delete
             </Button>
           </DialogActions>
