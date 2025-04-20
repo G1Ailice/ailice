@@ -123,6 +123,7 @@ function PaginationNavigation({ currentPage, totalPages, onPageChange }: Paginat
 export default function UsersPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const router = useRouter();
   const isMobile = useMediaQuery('(max-width:600px)');
 
@@ -135,12 +136,14 @@ export default function UsersPage() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [newUsername, setNewUsername] = useState('');
+  const [newEmail, setNewEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
 
   // Error states for update fields
   const [newPasswordError, setNewPasswordError] = useState('');
   const [confirmPasswordError, setConfirmPasswordError] = useState('');
+  const [newEmailError, setNewEmailError] = useState('');
 
   // Confirmation dialog state for update
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
@@ -160,6 +163,15 @@ export default function UsersPage() {
   const [achievementsData, setAchievementsData] = useState<(UserAcv & Partial<Achievement>)[]>([]);
   const [achievementsLoading, setAchievementsLoading] = useState(false);
 
+  // Insert new state hooks for "Add Admin" above other dialog state definitions
+  const [addAdminDialogOpen, setAddAdminDialogOpen] = useState(false);
+  const [newAdminUsername, setNewAdminUsername] = useState('');
+  const [newAdminEmail, setNewAdminEmail] = useState('');
+  const [newAdminPassword, setNewAdminPassword] = useState('');
+  const [newAdminPasswordError, setNewAdminPasswordError] = useState('');
+  const [newAdminUsernameError, setNewAdminUsernameError] = useState('');
+  const [newAdminEmailError, setNewAdminEmailError] = useState('');
+
   useEffect(() => {
     const fetchUsers = async () => {
       const { data, error } = await supabase
@@ -176,17 +188,34 @@ export default function UsersPage() {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      try {
+        const res = await fetch('/api/check-auth');
+        if (res.ok) {
+          const data = await res.json();
+          setCurrentUserId(data.id);
+        }
+      } catch (err) {
+        console.error('Error fetching current user:', err);
+      }
+    };
+    fetchCurrentUser();
+  }, []);
+
   // Handle showing the edit dialog for a student user
   const handleEdit = (id: string) => {
     const userToEdit = users.find(user => user.id === id && user.role === 'Student');
     if (userToEdit) {
       setEditingUser(userToEdit);
       setNewUsername(userToEdit.username);
+      setNewEmail(userToEdit.email);
       setNewPassword('');
       setConfirmPassword('');
       // Reset error messages
       setNewPasswordError('');
       setConfirmPasswordError('');
+      setNewEmailError('');
       setEditDialogOpen(true);
     }
   };
@@ -194,6 +223,22 @@ export default function UsersPage() {
   // Validate fields using MUI error messages instead of alert windows
   const validateUpdateFields = () => {
     let valid = true;
+    if (!newEmail.trim()) {
+      setNewEmailError('Email cannot be empty');
+      valid = false;
+    } else {
+      // Check valid email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(newEmail)) {
+        setNewEmailError('Invalid email address');
+        valid = false;
+      } else if (users.some(u => u.email.toLowerCase() === newEmail.toLowerCase() && u.id !== editingUser?.id)) {
+        setNewEmailError('Email already exists');
+        valid = false;
+      } else {
+        setNewEmailError('');
+      }
+    }
     if (newPassword.trim() === '') {
       setNewPasswordError('Password cannot be empty');
       valid = false;
@@ -233,6 +278,7 @@ export default function UsersPage() {
         .from('users')
         .update({
           username: newUsername,
+          email: newEmail,
           password: hashedPassword
         })
         .eq('id', editingUser.id);
@@ -241,7 +287,7 @@ export default function UsersPage() {
       } else {
         setUsers(prevUsers =>
           prevUsers.map(user =>
-            user.id === editingUser.id ? { ...user, username: newUsername } : user
+            user.id === editingUser.id ? { ...user, username: newUsername, email: newEmail } : user
           )
         );
         setEditDialogOpen(false);
@@ -382,6 +428,73 @@ export default function UsersPage() {
     fetchUserAchievements();
   }, [selectedUserId, achievementsDialogOpen]);
 
+  // Add function to validate and add new Admin user
+  const handleAddAdmin = async () => {
+    // Simple validation for demonstration
+    let valid = true;
+    if (!newAdminPassword.trim()) {
+      setNewAdminPasswordError('Password cannot be empty');
+      valid = false;
+    } else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/.test(newAdminPassword)) {
+      setNewAdminPasswordError('Password must be at least 8 characters and include uppercase, lowercase, and a number.');
+      valid = false;
+    } else {
+      setNewAdminPasswordError('');
+    }
+    // Validate username
+    if (!newAdminUsername.trim()) {
+      setNewAdminUsernameError('Username cannot be empty');
+      valid = false;
+    } else {
+      setNewAdminUsernameError('');
+    }
+    // Validate email with regex
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!newAdminEmail.trim()) {
+      setNewAdminEmailError('Email cannot be empty');
+      valid = false;
+    } else if (!emailRegex.test(newAdminEmail)) {
+      setNewAdminEmailError('Invalid email address');
+      valid = false;
+    } else if (users.some(u => u.email.toLowerCase() === newAdminEmail.toLowerCase())) {
+      setNewAdminEmailError('Email already exists');
+      valid = false;
+    } else {
+      setNewAdminEmailError('');
+    }
+    if (!valid) return;
+    try {
+      const hashedPassword = await bcrypt.hash(newAdminPassword, 10);
+      const { data, error } = await supabase
+        .from('users')
+        .insert({
+          username: newAdminUsername,
+          email: newAdminEmail,
+          password: hashedPassword,
+          role: 'Admin'
+        });
+      if (error) {
+        console.error('Error creating admin:', error);
+      } else if (data) {
+        setUsers(prevUsers => [...prevUsers, data[0] as User]);
+        setSnackbarMessage('Admin user added successfully.');
+        setSnackbarOpen(true);
+      }
+    } catch (err) {
+      console.error('Error adding admin:', err);
+    }
+    handleCloseAddAdminDialog();
+  };
+
+  // Add helper function to reset Add Admin dialog inputs
+  const handleCloseAddAdminDialog = () => {
+    setAddAdminDialogOpen(false);
+    setNewAdminUsername('');
+    setNewAdminEmail('');
+    setNewAdminPassword('');
+    setNewAdminPasswordError('');
+  };
+
   const adminUsers = users.filter(user => user.role === 'Admin');
   const studentUsers = users.filter(user => user.role === 'Student');
 
@@ -411,9 +524,14 @@ export default function UsersPage() {
       <Stack spacing={4}>
         {/* Admin Users Table */}
         <Paper elevation={4} sx={{ p: 3, borderRadius: 2 }}>
-          <Typography variant="h5" sx={{ mb: 2, color: blue[700], fontWeight: 600 }}>
-            Admin Users
-          </Typography>
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Typography variant="h5" sx={{ color: blue[700], fontWeight: 600 }}>
+              Admin Users
+            </Typography>
+            <Button variant="contained" onClick={() => setAddAdminDialogOpen(true)} sx={{ borderRadius: 2 }}>
+              Add Admin
+            </Button>
+          </Box>
           {adminUsers.length === 0 ? (
             <Typography>No Admin users found.</Typography>
           ) : (
@@ -425,6 +543,8 @@ export default function UsersPage() {
                     <TableCell sx={{ fontWeight: 600, borderBottom: '2px solid ' + blue[200] }}>Email</TableCell>
                     <TableCell sx={{ fontWeight: 600, borderBottom: '2px solid ' + blue[200] }}>Username</TableCell>
                     <TableCell sx={{ fontWeight: 600, borderBottom: '2px solid ' + blue[200] }}>Role</TableCell>
+                    {/* Added Actions column */}
+                    <TableCell align="center" sx={{ fontWeight: 600, borderBottom: '2px solid ' + blue[200] }}>Actions</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -446,6 +566,20 @@ export default function UsersPage() {
                       <TableCell>{user.email}</TableCell>
                       <TableCell>{user.username}</TableCell>
                       <TableCell>{user.role}</TableCell>
+                      {/* Added Actions cell */}
+                      <TableCell align="center">
+                        <Stack direction="row" spacing={1} justifyContent="center">
+                          <Button
+                            variant="contained"
+                            color="error"
+                            size="small"
+                            sx={{ borderRadius: 2 }}
+                            disabled
+                          >
+                            Delete
+                          </Button>
+                        </Stack>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -525,6 +659,7 @@ export default function UsersPage() {
                               size="small"
                               sx={{ borderRadius: 2 }}
                               onClick={() => handleDelete(user.id)}
+                              disabled={user.id === currentUserId}
                             >
                               Delete
                             </Button>
@@ -574,6 +709,16 @@ export default function UsersPage() {
               fullWidth
               value={newUsername}
               onChange={(e) => setNewUsername(e.target.value)}
+            />
+            <TextField
+              label="Email"
+              type="email"
+              fullWidth
+              value={newEmail}
+              onChange={(e) => { setNewEmail(e.target.value); setNewEmailError(''); }}
+              required
+              error={Boolean(newEmailError)}
+              helperText={newEmailError || "Enter a valid email address"}
             />
             <TextField
               label="New Password"
@@ -748,6 +893,64 @@ export default function UsersPage() {
         <DialogActions sx={{ px: 3, pb: 2 }}>
           <Button onClick={() => setAchievementsDialogOpen(false)} variant="contained">
             Close
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Add Admin Dialog */}
+      <Dialog
+        open={addAdminDialogOpen}
+        onClose={handleCloseAddAdminDialog}
+        fullWidth
+        maxWidth="sm"
+        PaperProps={{
+          sx: { borderRadius: 3, p: 2, boxShadow: 3 }
+        }}
+      >
+        <DialogTitle sx={{ backgroundColor: blue[50], fontWeight: 600 }}>
+          Add Admin User
+        </DialogTitle>
+        <DialogContent dividers sx={{ py: 3 }}>
+          <Stack spacing={2}>
+            <TextField
+              autoFocus
+              label="Username"
+              fullWidth
+              value={newAdminUsername}
+              onChange={(e) => { setNewAdminUsername(e.target.value); setNewAdminUsernameError(''); }}
+              required
+              error={Boolean(newAdminUsernameError)}
+              helperText={newAdminUsernameError}
+            />
+            <TextField
+              label="Email"
+              type="email"
+              placeholder="example@example.com"
+              fullWidth
+              value={newAdminEmail}
+              onChange={(e) => { setNewAdminEmail(e.target.value); setNewAdminEmailError(''); }}
+              required
+              error={Boolean(newAdminEmailError)}
+              helperText={newAdminEmailError || "Enter a valid email address"}
+            />
+            <TextField
+              label="Password"
+              fullWidth
+              type="password"
+              value={newAdminPassword}
+              onChange={(e) => setNewAdminPassword(e.target.value)}
+              required
+              error={Boolean(newAdminPasswordError)}
+              helperText={newAdminPasswordError}
+            />
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleCloseAddAdminDialog} variant="outlined">
+            Cancel
+          </Button>
+          <Button onClick={handleAddAdmin} variant="contained">
+            Add
           </Button>
         </DialogActions>
       </Dialog>

@@ -5,13 +5,9 @@ import { useRouter } from 'next/navigation';
 import {
   AppBar,
   Avatar,
-  BottomNavigation,
-  BottomNavigationAction,
   Box,
   Button,
   CssBaseline,
-  Drawer,
-  LinearProgress,
   Popover,
   TextField,
   ThemeProvider,
@@ -299,134 +295,166 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
         }}
       >
         <Toolbar sx={{ justifyContent: 'space-between' }}>
-          <Typography variant="h4" component="div" color="primary" sx={{ fontSize: '2rem' }}>
-            <img src="/icons/ailicemascot.png" alt="AILICEMASCOT" style={{ maxHeight: '30px' }} />
-            <img src="/icons/ailiceword.png" alt="AILICE" style={{ maxHeight: '30px' }} />
-          </Typography>
-          <Box display="flex" alignItems="center">
-            {username && (
-              <>
-                <Tooltip title="Back">
-                  <IconButton
-                    onClick={() => router.back()}
-                    sx={{ width: 40, height: 40, cursor: 'pointer', marginRight: '10px' }}
-                  >
-                    <ArrowBackIcon sx={{ fontSize: 30, color: blue[500] }} />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Home">
-                  <IconButton
-                    onClick={() => router.push('/home')}
-                    sx={{ width: 40, height: 40, cursor: 'pointer', marginRight: '10px' }}
-                  >
-                    <HomeIcon sx={{ fontSize: 30, color: blue[500] }} />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Profile">
-                  <Avatar
-                    onClick={handleClick}
-                    src={
-                      userData?.profile_pic
-                        ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${userData.profile_pic}`
-                        : undefined
-                    }
-                    sx={{
-                      width: 40,
-                      height: 40,
-                      cursor: 'pointer',
-                      backgroundColor: blue[200],
-                      border: '2px solid',
-                      borderColor: blue[500],
-                      borderRadius: '50%',
-                    }}
-                  >
-                    {!userData?.profile_pic && userData?.username?.[0]?.toUpperCase()}
-                  </Avatar>
-                </Tooltip>
-                <Popover
-                  open={openPopover}
-                  anchorEl={anchorEl}
-                  onClose={handleClose}
-                  anchorOrigin={{
-                    vertical: 'bottom',
-                    horizontal: 'center',
-                  }}
-                  transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'center',
-                  }}
-                  sx={{
-                    '& .MuiPaper-root': {
-                      background: 'linear-gradient(135deg, #E3F2FD, #BBDEFB)',
-                      padding: 2,
-                      borderRadius: '12px',
-                      boxShadow: '0px 4px 10px rgba(0,0,0,0.1)',
-                    },
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                    }}
-                  >
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Typography variant="h4" component="div" color="primary" sx={{ fontSize: '2rem' }}>
+              <img src="/icons/ailicemascot.png" alt="AILICEMASCOT" style={{ maxHeight: '30px' }} />
+              <img src="/icons/ailiceword.png" alt="AILICE" style={{ maxHeight: '30px' }} />
+            </Typography>
+            {/* Removed navigation buttons from left */}
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Tooltip title="Back">
+              <IconButton
+                onClick={() => router.back()}
+                sx={{ width: 40, height: 40, cursor: 'pointer', marginRight: '10px' }}
+              >
+                <ArrowBackIcon sx={{ fontSize: 30, color: blue[500] }} />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Home">
+              <IconButton
+                onClick={() => router.push('/adminhome')}
+                sx={{ width: 40, height: 40, cursor: 'pointer', marginRight: '10px' }}
+              >
+                <HomeIcon sx={{ fontSize: 30, color: blue[500] }} />
+              </IconButton>
+            </Tooltip>
+            {/* New Nav Buttons with changed design */}
+            <Button
+              variant="outlined"
+              sx={{
+                borderColor: blue[500],
+                color: blue[500],
+                textTransform: 'none',
+                px: 2,
+                py: 0.5,
+              }}
+              onClick={() => router.push('/adminhome/students')}
+            >
+              Student List
+            </Button>
+            <Button
+              variant="outlined"
+              sx={{
+                borderColor: blue[500],
+                color: blue[500],
+                textTransform: 'none',
+                px: 2,
+                py: 0.5,
+              }}
+              onClick={() => router.push('/adminhome/subjects')}
+            >
+              Manage Subjects
+            </Button>
+            <Box display="flex" alignItems="center">
+              {username && (
+                <>
+                  <Tooltip title="Profile">
                     <Avatar
+                      onClick={handleClick}
                       src={
                         userData?.profile_pic
                           ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${userData.profile_pic}`
                           : undefined
                       }
                       sx={{
-                        width: 80,
-                        height: 80,
-                        mb: 2,
-                        backgroundColor: blue[300],
+                        width: 40,
+                        height: 40,
+                        cursor: 'pointer',
+                        backgroundColor: blue[200],
+                        border: '2px solid',
+                        borderColor: blue[500],
+                        borderRadius: '50%',
                       }}
                     >
                       {!userData?.profile_pic && userData?.username?.[0]?.toUpperCase()}
                     </Avatar>
-                    <Typography
-                      variant="h6"
+                  </Tooltip>
+                  <Popover
+                    open={openPopover}
+                    anchorEl={anchorEl}
+                    onClose={handleClose}
+                    anchorOrigin={{
+                      vertical: 'bottom',
+                      horizontal: 'center',
+                    }}
+                    transformOrigin={{
+                      vertical: 'top',
+                      horizontal: 'center',
+                    }}
+                    sx={{
+                      '& .MuiPaper-root': {
+                        background: 'linear-gradient(135deg, #E3F2FD, #BBDEFB)',
+                        padding: 2,
+                        borderRadius: '12px',
+                        boxShadow: '0px 4px 10px rgba(0,0,0,0.1)',
+                      },
+                    }}
+                  >
+                    <Box
                       sx={{
-                        fontWeight: 'bold',
-                        fontSize: '1.25rem',
-                        mb: 1,
-                        textAlign: 'center',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
                       }}
                     >
-                      {userData?.username || 'User'}
-                    </Typography>
-                    <Typography variant="body2" sx={{ color: grey[700], mb: 2, textAlign: 'center' }}>
-                      {userData?.email || 'user@example.com'}
-                    </Typography>
-                    <Button
-                      variant="text"
-                      onClick={handleAccountSettings}
-                      sx={{
-                        width: '100%',
-                        color: 'text.primary',
-                        textTransform: 'none',
-                      }}
-                    >
-                      Account Settings
-                    </Button>
-                    <Divider sx={{ width: '100%', my: 1, borderStyle: 'dashed' }} />
-                    <Button
-                      variant="text"
-                      onClick={handleLogout}
-                      sx={{
-                        width: '100%',
-                        color: 'red',
-                        textTransform: 'none',
-                      }}
-                    >
-                      Logout
-                    </Button>
-                  </Box>
-                </Popover>
-              </>
-            )}
+                      <Avatar
+                        src={
+                          userData?.profile_pic
+                            ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/profiles/${userData.profile_pic}`
+                            : undefined
+                        }
+                        sx={{
+                          width: 80,
+                          height: 80,
+                          mb: 2,
+                          backgroundColor: blue[300],
+                        }}
+                      >
+                        {!userData?.profile_pic && userData?.username?.[0]?.toUpperCase()}
+                      </Avatar>
+                      <Typography
+                        variant="h6"
+                        sx={{
+                          fontWeight: 'bold',
+                          fontSize: '1.25rem',
+                          mb: 1,
+                          textAlign: 'center',
+                        }}
+                      >
+                        {userData?.username || 'User'}
+                      </Typography>
+                      <Typography variant="body2" sx={{ color: grey[700], mb: 2, textAlign: 'center' }}>
+                        {userData?.email || 'user@example.com'}
+                      </Typography>
+                      <Button
+                        variant="text"
+                        onClick={handleAccountSettings}
+                        sx={{
+                          width: '100%',
+                          color: 'text.primary',
+                          textTransform: 'none',
+                        }}
+                      >
+                        Account Settings
+                      </Button>
+                      <Divider sx={{ width: '100%', my: 1, borderStyle: 'dashed' }} />
+                      <Button
+                        variant="text"
+                        onClick={handleLogout}
+                        sx={{
+                          width: '100%',
+                          color: 'red',
+                          textTransform: 'none',
+                        }}
+                      >
+                        Logout
+                      </Button>
+                    </Box>
+                  </Popover>
+                </>
+              )}
+            </Box>
           </Box>
         </Toolbar>
       </AppBar>

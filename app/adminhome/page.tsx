@@ -127,75 +127,7 @@ export default function HomePage() {
             <Typography variant="body1" sx={{ mb: 3, color: grey[700], lineHeight: 1.6 }}>
               It's recommended to use the admin account on a desktop or laptop for the best experience.
             </Typography>
-            <Box
-              sx={{
-                display: 'flex',
-                flexDirection: isMobile ? 'column' : 'row',
-                gap: 2,
-                justifyContent: 'center',
-              }}
-            >
-              <Button
-                variant="contained"
-                sx={{
-                  backgroundColor: blue[700],
-                  color: 'white',
-                  borderRadius: 3,
-                  px: 4,
-                  py: 1.5,
-                  fontWeight: 600,
-                  boxShadow: `0px 4px 10px ${blue[300]}`,
-                  transition: 'transform 0.2s ease, background-color 0.3s ease',
-                  '&:hover': {
-                    backgroundColor: blue[800],
-                    transform: 'scale(1.05)',
-                  },
-                }}
-                onClick={() => router.push('/adminhome/students')}
-              >
-                Student List
-              </Button>
-              <Button
-                variant="contained"
-                sx={{
-                  backgroundColor: blue[700],
-                  color: 'white',
-                  borderRadius: 3,
-                  px: 4,
-                  py: 1.5,
-                  fontWeight: 600,
-                  boxShadow: `0px 4px 10px ${blue[300]}`,
-                  transition: 'transform 0.2s ease, background-color 0.3s ease',
-                  '&:hover': {
-                    backgroundColor: blue[800],
-                    transform: 'scale(1.05)',
-                  },
-                }}
-                onClick={() => router.push('/adminhome/subjects')}
-              >
-                Manage Subjects
-              </Button>
-              <Button
-                variant="contained"
-                sx={{
-                  backgroundColor: blue[700],
-                  color: 'white',
-                  borderRadius: 3,
-                  px: 4,
-                  py: 1.5,
-                  fontWeight: 600,
-                  boxShadow: `0px 4px 10px ${blue[300]}`,
-                  transition: 'transform 0.2s ease, background-color 0.3s ease',
-                  '&:hover': {
-                    backgroundColor: blue[800],
-                    transform: 'scale(1.05)',
-                  },
-                }}
-                onClick={() => router.push('/adminhome/aichatdbs')}
-              >
-                AI Chatbot DB
-              </Button>
-            </Box>
+            {/* Removed navigation buttons */}
           </Paper>
         </Box>
       </Container>
