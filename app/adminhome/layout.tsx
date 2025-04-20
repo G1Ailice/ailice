@@ -329,9 +329,9 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
                 px: 2,
                 py: 0.5,
               }}
-              onClick={() => router.push('/adminhome/students')}
+              onClick={() => router.push('/adminhome/usermanage')}
             >
-              Student List
+              User Management
             </Button>
             <Button
               variant="outlined"
