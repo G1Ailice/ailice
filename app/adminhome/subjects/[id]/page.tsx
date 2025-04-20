@@ -989,13 +989,14 @@ export default function AdminStudentLessonsPage() {
             fullWidth
             sx={{ mt: 2 }}  // added margin top
           />
+          {/* Modified Quiz Overall Score field: now uneditable */}
           <TextField
             label="Quiz Overall Score"
             name="allscore"
             type="number"
             value={trialFormData.allscore}
-            onChange={handleTrialFormChange}
             fullWidth
+            disabled
           />
           <TextField
             label="Time"
@@ -1122,6 +1123,8 @@ export default function AdminStudentLessonsPage() {
             helperText={addQuizErrors.trial_title}
             sx={{ mt: 2 }}  // added margin top
           />
+          {/* Removed the Quiz Overall Score field here */}
+          {/*
           <TextField
             label="Quiz Overall Score"
             name="allscore"
@@ -1132,6 +1135,7 @@ export default function AdminStudentLessonsPage() {
             error={!!addQuizErrors.allscore}
             helperText={addQuizErrors.allscore}
           />
+          */}
           <TextField
             label="Time"
             name="time"

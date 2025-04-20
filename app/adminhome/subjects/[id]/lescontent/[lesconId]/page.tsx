@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
-import DOMPurify from 'dompurify';
 import {
   Typography,
   Container,
@@ -714,7 +713,7 @@ export default function LessonDetailsTabs() {
                     borderRadius: 2,
                     backgroundColor: '#fafafa',
                   }}
-                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(lessonContent || '') }}
+                  dangerouslySetInnerHTML={{ __html: lessonContent || '' }}
                 />
               </>
             )}

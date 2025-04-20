@@ -77,6 +77,9 @@ const AdminTrialQuestions = () => {
   // Add new state for trial question count
   const [trialQcount, setTrialQcount] = useState<number | null>(null);
 
+  // Add new state for full trial data
+  const [trialData, setTrialData] = useState<any>(null); // adjust type if needed
+
   // Fetch questions from Supabase based on trialid
   const fetchQuestions = async () => {
     setLoading(true);
@@ -86,8 +89,12 @@ const AdminTrialQuestions = () => {
       .eq("trial_id", trialid);
     if (error) {
       setError("Error fetching questions.");
-    } else {
+    } else if (data) {
       setQuestions(data as Question[]);
+      // Calculate the total qpoints from the fetched questions
+      const totalPoints = (data as Question[]).reduce((acc, q) => acc + Number(q.qpoints), 0);
+      // Update the trial's allscore with the calculated total
+      await supabase.from("trials").update({ allscore: totalPoints }).eq("id", trialid);
     }
     setLoading(false);
   };
@@ -96,19 +103,23 @@ const AdminTrialQuestions = () => {
     fetchQuestions();
   }, [trialid]);
 
-  // New useEffect to fetch trial info (qcount) using trialid
+  // Replace the former useEffect that fetched only qcount with one that fetches full trial details
   useEffect(() => {
-    const fetchTrialInfo = async () => {
+    const fetchTrialData = async () => {
       const { data, error } = await supabase
         .from("trials")
-        .select("qcount")
+        .select("*")
         .eq("id", trialid)
         .single();
       if (!error && data) {
+        setTrialData(data);
+        // Update trialQcount from the fetched trial data
         setTrialQcount(data.qcount);
       }
     };
-    fetchTrialInfo();
+    if(trialid){
+      fetchTrialData();
+    }
   }, [trialid]);
 
   // Reset dialog form state
@@ -280,24 +291,34 @@ const AdminTrialQuestions = () => {
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
-        <Typography variant="h4">Questions for Trial {trialid}</Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleAddOpen}
-          disabled={trialQcount !== null && questions.length >= trialQcount}
-        >
-          Add Question
-        </Button>
+      <Box mb={2}>
+        {trialData && (
+          <Box mb={2}>
+            <Typography variant="h6">
+              Trial: {trialData.trial_title}
+            </Typography>
+            <Typography variant="body2">
+              Time: {trialData.time} seconds | Overall Score: {trialData.allscore} | Questions Allowed: {trialData.qcount}
+            </Typography>
+          </Box>
+        )}
+        <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+          <Typography variant="h4">Questions for Trial {trialid}</Typography>
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAddOpen}
+            disabled={trialQcount !== null && questions.length >= trialQcount}
+          >
+            Add Question
+          </Button>
+        </Box>
+        {trialQcount !== null && (
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            {questions.length} / {trialQcount} questions added
+          </Typography>
+        )}
       </Box>
-      {/* Signifier for current question count */}
-      {trialQcount !== null && (
-        <Typography variant="body2" sx={{ mb: 2 }}>
-          {questions.length} / {trialQcount} questions added
-        </Typography>
-      )}
-
       {error ? (
         <Alert severity="error">{error}</Alert>
       ) : (
