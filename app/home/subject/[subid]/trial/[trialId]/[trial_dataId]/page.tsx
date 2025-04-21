@@ -386,12 +386,14 @@ const TrialPage = () => {
       totalPoints = Math.floor(totalPoints * 0.8);
     }
   
-    // Adjust star logic
-    const star1 = totalPoints > 0; // At least 1 point for the first star
-    const star2 = star1 && (allScore > 0 ? totalPoints / allScore >= 0.7 : false);
-    const star3 =
-      star2 && (allocatedTime > 0 ? finalRemainingValue / allocatedTime >= 0.35 : false);
-    const starCount = (star1 ? 1 : 0) + (star2 ? 1 : 0) + (star3 ? 1 : 0);
+    // Adjust star logic: if totalPoints is 0, ensure no stars are awarded.
+    let starCount = 0;
+    if(totalPoints > 0) {
+      const star1 = true; // Guaranteed if points > 0
+      const star2 = allScore > 0 ? totalPoints / allScore >= 0.7 : false;
+      const star3 = allocatedTime > 0 ? finalRemainingValue / allocatedTime >= 0.35 : false;
+      starCount = (star1 ? 1 : 0) + (star2 ? 1 : 0) + (star3 ? 1 : 0);
+    }
   
     const rawEval =
       (((totalPoints / allScore) * 0.6) + ((finalRemainingValue / allocatedTime) * 0.4)) * 100;
@@ -959,13 +961,13 @@ const TrialPage = () => {
         )}
         <Box sx={{ mt: { xs: 2, md: 3 } }}>
           <Typography variant="body2" align="center" sx={{ fontSize: { xs: "0.65rem", md: "0.875rem" } }}>
-            * First Star: Awarded for completing the trial.
+            * First Star: Awarded for scoring above 0 points.
           </Typography>
           <Typography variant="body2" align="center" sx={{ fontSize: { xs: "0.65rem", md: "0.875rem" } }}>
-            * Second Star: Awarded if your score is at least 70% of the total score and you have earned the first star.
+            * Second Star: Awarded if you score at least 70% of the total score and earned the first star.
           </Typography>
           <Typography variant="body2" align="center" sx={{ fontSize: { xs: "0.65rem", md: "0.875rem" } }}>
-            * Third Star: Awarded if you finish with at least 35% of the time remaining and you have earned the second star.
+            * Third Star: Awarded if you finish with at least 35% of the allocated time remaining and earned the second star.
           </Typography>
         </Box>
       </DialogContent>
