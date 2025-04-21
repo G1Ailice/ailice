@@ -242,6 +242,16 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
     setMessages([]);
   };
 
+  const handleLogout = async () => {
+    try {
+      await fetch('/api/logout', { method: 'POST' });
+      clearChat(); // Reset AI chat history on logout
+      router.push('/');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
   // Profile popover handlers
   const handleClick = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -252,15 +262,6 @@ export default function HomeLayout({ children }: { children: React.ReactNode }) 
 
   const handleAccountSettings = () => {
     router.push('/adminhome/accountsettings');
-  };
-
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/logout', { method: 'POST' });
-      router.push('/');
-    } catch (error) {
-      console.error('Logout failed:', error);
-    }
   };
 
   const openPopover = Boolean(anchorEl);

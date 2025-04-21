@@ -463,7 +463,7 @@ const LessonsPage = () => {
 
         // Set the various display states.
         setAttempted(true);
-        setStarRating(bestRecord.star || 0);
+        setStarRating(bestRecord.score === 0 ? 0 : (bestRecord.star || 0));
         setTrialScore(bestRecord.score || 0);
         setTimeConcluded(bestRecord.time_concluded || 0);
       } else {
