@@ -686,7 +686,7 @@ export default function LessonDetailsTabs() {
                 />
                 <SunEditor
                   setOptions={{
-                    height: '250px',
+                    height: 'auto', // Remove height limit
                     toolbarContainer: '#myToolbar',
                     buttonList: [
                       ['undo', 'redo'],
