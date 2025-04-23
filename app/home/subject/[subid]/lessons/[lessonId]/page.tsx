@@ -28,6 +28,8 @@
     Alert,
   } from '@mui/material';
   import DeleteIcon from '@mui/icons-material/Delete';
+  import SunEditor from 'suneditor-react';
+  import 'suneditor/dist/css/suneditor.min.css';
 
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -586,12 +588,11 @@
               }}
             >
               <Tab label="Lesson" />
-              <Tab label="Practice" />
+              {gameContent && <Tab label="Practice" />}
               <Tab label="Discussions" />
             </Tabs>
             {currentTab === 0 && (
               <Box
-                mt={2}
                 sx={{
                   overflowY: 'auto',
                   maxHeight: '60vh',
@@ -610,10 +611,13 @@
                     borderRadius: '4px',
                   },
                 }}
-                dangerouslySetInnerHTML={{
-                  __html: lessonContent || '<p>Lesson content not found.</p>',
-                }}
-              />
+              >
+                <SunEditor
+                  disable={true}
+                  hideToolbar={true}
+                  setContents={lessonContent || '<p>Lesson content not found.</p>'}
+                />
+              </Box>
             )}
             {currentTab === 1 && (
               <Box mt={2} sx={{ maxHeight: '70vh', overflowY: 'auto' }}>

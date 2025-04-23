@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
+import dynamic from 'next/dynamic';
 import {
   Typography,
   Container,
@@ -27,6 +28,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import AddIcon from '@mui/icons-material/Add';
+import 'suneditor/dist/css/suneditor.min.css';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_KEY!;
@@ -37,6 +39,8 @@ interface LessonContent {
   content: string;
   content_type: string;
 }
+
+const SunEditor = dynamic(() => import('suneditor-react'), { ssr: false });
 
 export default function LessonDetailsTabs() {
   const params = useParams();
@@ -651,6 +655,7 @@ export default function LessonDetailsTabs() {
 
         {currentTab === 0 && (
           <Box mt={2}>
+            
             {isEditingLesson ? (
               <>
                 {/* Save and Cancel buttons on top-left */}
@@ -668,25 +673,37 @@ export default function LessonDetailsTabs() {
                   </Button>
                 </Box>
                 <Box
+                  mb={2}
+                  id="myToolbar"
+                  className="sun-editor"
                   sx={{
-                    backgroundColor: '#f7f7f7',
-                    padding: 2,
-                    borderRadius: 2,
-                    border: '1px solid #ccc',
+                    position: 'sticky',
+                    top: '64px', // Adjusted to account for the app bar height
+                    zIndex: 1000,
+                    backgroundColor: 'white',
+                    borderBottom: '1px solid #ddd',
                   }}
-                >
-                  <TextField
-                    fullWidth
-                    variant="outlined"
-                    multiline
-                    value={lessonContent}
-                    onChange={(e) => setLessonContent(e.target.value)}
-                    sx={{
-                      height: 'calc(100vh - 300px)',
-                      overflowY: 'auto',
-                    }}
-                  />
-                </Box>
+                />
+                <SunEditor
+                  setOptions={{
+                    height: '250px',
+                    toolbarContainer: '#myToolbar',
+                    buttonList: [
+                      ['undo', 'redo'],
+                      ['font', 'fontSize', 'formatBlock'],
+                      ['paragraphStyle', 'blockquote'],
+                      ['bold', 'underline', 'italic', 'strike', 'subscript', 'superscript'],
+                      ['fontColor', 'hiliteColor', 'textStyle'],
+                      ['removeFormat'],
+                      ['outdent', 'indent'],
+                      ['align', 'horizontalRule', 'list', 'lineHeight'],
+                      ['table', 'link', 'image', 'video', 'audio'],
+                      ['fullScreen', 'showBlocks', 'codeView', 'preview', 'print'],
+                    ],
+                  }}
+                  setContents={lessonContent}
+                  onChange={(content: string) => setLessonContent(content)}
+                />
               </>
             ) : (
               <>
@@ -712,9 +729,19 @@ export default function LessonDetailsTabs() {
                     border: '1px solid #eee',
                     borderRadius: 2,
                     backgroundColor: '#fafafa',
+                    overflowY: 'auto',
+                    maxHeight: '60vh',
+                    textAlign: 'left',
+                    fontSize: { xs: '0.8rem', sm: '1rem' },
+                    lineHeight: { xs: 1.4, sm: 1.6 },
                   }}
-                  dangerouslySetInnerHTML={{ __html: lessonContent || '' }}
-                />
+                >
+                  <SunEditor
+                    disable={true}
+                    setContents={lessonContent}
+                    hideToolbar={true}
+                  />
+                </Box>
               </>
             )}
           </Box>
@@ -738,44 +765,80 @@ export default function LessonDetailsTabs() {
                     Cancel
                   </Button>
                 </Box>
+                <Typography variant="h6" color="black" mb={1}>
+                  Game Content
+                </Typography>
                 <Box
                   sx={{
-                    backgroundColor: '#f7f7f7',
+                    backgroundColor: '#1e1e1e',
                     padding: 2,
                     borderRadius: 2,
                     border: '1px solid #ccc',
                     mb: 2,
+                    color: '#d4d4d4',
+                    fontFamily: 'monospace',
+                    fontSize: '0.9rem',
                   }}
                 >
                   <TextField
                     fullWidth
                     variant="outlined"
                     multiline
-                    label="Game Content"
                     value={gameContent}
                     onChange={(e) => setGameContent(e.target.value)}
                     sx={{
+                      '& .MuiInputBase-root': {
+                        backgroundColor: '#1e1e1e',
+                        color: '#d4d4d4',
+                      },
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#3c3c3c',
+                      },
+                      '& .MuiInputBase-input': {
+                        fontFamily: 'monospace',
+                      },
+                      '& .Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#3c3c3c', // Prevent highlight on focus
+                      },
                       height: 'calc(50vh - 150px)',
                       overflowY: 'auto',
                     }}
                   />
                 </Box>
+                <Typography variant="h6" color="black" mb={1}>
+                  Game Script
+                </Typography>
                 <Box
                   sx={{
-                    backgroundColor: '#f7f7f7',
+                    backgroundColor: '#1e1e1e',
                     padding: 2,
                     borderRadius: 2,
                     border: '1px solid #ccc',
+                    color: '#d4d4d4',
+                    fontFamily: 'monospace',
+                    fontSize: '0.9rem',
                   }}
                 >
                   <TextField
                     fullWidth
                     variant="outlined"
                     multiline
-                    label="Game Script"
                     value={gameScript}
                     onChange={(e) => setGameScript(e.target.value)}
                     sx={{
+                      '& .MuiInputBase-root': {
+                        backgroundColor: '#1e1e1e',
+                        color: '#d4d4d4',
+                      },
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#3c3c3c',
+                      },
+                      '& .MuiInputBase-input': {
+                        fontFamily: 'monospace',
+                      },
+                      '& .Mui-focused .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#3c3c3c', // Prevent highlight on focus
+                      },
                       height: 'calc(50vh - 150px)',
                       overflowY: 'auto',
                     }}
@@ -812,15 +875,30 @@ export default function LessonDetailsTabs() {
                   sx={{
                     maxHeight: '70vh',
                     overflowY: 'auto',
+                    backgroundColor: '#1e1e1e',
+                    color: '#d4d4d4',
+                    fontFamily: 'monospace',
+                    fontSize: '0.9rem',
+                    borderRadius: 2,
+                    border: '1px solid #3c3c3c',
+                    padding: 2,
+                    '&::-webkit-scrollbar': { width: '8px' },
+                    '&::-webkit-scrollbar-thumb': {
+                      backgroundColor: '#555',
+                      borderRadius: '4px',
+                    },
+                    '&::-webkit-scrollbar-track': {
+                      backgroundColor: '#2e2e2e',
+                    },
                   }}
                 >
-                  <Typography variant="body2" color="error" mb={2}>
+                  <Typography variant="body2" color="#d4d4d4" mb={2}>
                     Switching to other tabs will reset your progression.
                   </Typography>
                   {gameContent ? (
-                    <Box mt={2} id="game-container" />
+                    <Box id="game-container" dangerouslySetInnerHTML={{ __html: gameContent }} />
                   ) : (
-                    <Typography variant="body1" color="textSecondary">
+                    <Typography variant="body1" color="#888">
                       Content not available.
                     </Typography>
                   )}
