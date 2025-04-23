@@ -613,9 +613,13 @@
                 }}
               >
                 <SunEditor
+                  height={'auto'}
                   disable={true}
                   hideToolbar={true}
                   setContents={lessonContent || '<p>Lesson content not found.</p>'}
+                  setOptions={{
+                    showPathLabel: false, 
+                  }}
                 />
               </Box>
             )}

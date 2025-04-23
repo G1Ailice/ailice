@@ -741,6 +741,9 @@ export default function LessonDetailsTabs() {
                     disable={true}
                     setContents={lessonContent}
                     hideToolbar={true}
+                    setOptions={{
+                      showPathLabel: false, 
+                    }}
                   />
                 </Box>
               </>
