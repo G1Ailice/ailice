@@ -730,13 +730,14 @@ export default function LessonDetailsTabs() {
                     borderRadius: 2,
                     backgroundColor: '#fafafa',
                     overflowY: 'auto',
-                    maxHeight: '60vh',
+                    maxHeight: '60vh', // Limit height to 60vh
                     textAlign: 'left',
                     fontSize: { xs: '0.8rem', sm: '1rem' },
                     lineHeight: { xs: 1.4, sm: 1.6 },
                   }}
                 >
                   <SunEditor
+                    height={'auto'}
                     disable={true}
                     setContents={lessonContent}
                     hideToolbar={true}
